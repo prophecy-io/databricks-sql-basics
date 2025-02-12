@@ -1,0 +1,107 @@
+name: DatabricksSqlBasics
+description: ''
+version: 0.0.2
+author: abhisheks+e2etests@prophecy.io
+language: sql
+buildSystem: ''
+buildSystemDetails: null
+pipelines: {}
+datasets: {}
+templates: {}
+jobs: {}
+gemContainer:
+  languageVersion: ''
+  gemLibsVersion: ''
+  gems: {}
+  dependencies: null
+functions:
+  author: null
+  createdAt: '2024-11-28 04:57:10'
+  udfs: {}
+  udafs: {}
+  expressions: {}
+  airflowFunctions: {}
+  businessRules: {}
+subgraphs: {}
+sqlModels: {}
+sqlSnapshots: {}
+sqlTests: {}
+sqlMacros:
+  .prophecy/metadata/sqlmacros/DataCleansing:
+    name: DataCleansing
+    macroType: query
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/DataCleansing.sql
+    - .prophecy/ide/macros/DataCleansing.json
+    - macros/macros.yml
+    - gems/DataCleansing.py
+    createdAt: '2024-11-28 05:01:34'
+  .prophecy/metadata/sqlmacros/DynamicSelect:
+    name: DynamicSelect
+    macroType: query
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/DynamicSelect.sql
+    - .prophecy/ide/macros/DynamicSelect.json
+    - macros/macros.yml
+    - gems/DynamicSelect.py
+    createdAt: '2024-11-28 05:02:17'
+  .prophecy/metadata/sqlmacros/ColumnParser:
+    name: ColumnParser
+    macroType: query
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/ColumnParser.sql
+    - .prophecy/ide/macros/ColumnParser.json
+    - macros/macros.yml
+    - gems/ColumnParser.py
+    createdAt: '2024-11-28 05:00:34'
+  .prophecy/metadata/sqlmacros/BulkColumnExpressions:
+    name: BulkColumnExpressions
+    macroType: query
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/BulkColumnExpressions.sql
+    - .prophecy/ide/macros/BulkColumnExpressions.json
+    - macros/macros.yml
+    - gems/BulkColumnExpressions.py
+    createdAt: '2024-11-28 04:58:45'
+  .prophecy/metadata/sqlmacros/BulkColumnRename:
+    name: BulkColumnRename
+    macroType: query
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/BulkColumnRename.sql
+    - .prophecy/ide/macros/BulkColumnRename.json
+    - macros/macros.yml
+    - gems/BulkColumnRename.py
+    createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/evaluate_expression:
+    name: evaluate_expression
+    macroType: expression
+    description: null
+    author: abhisheks+e2etests@prophecy.io
+    files:
+    - macros/evaluate_expression.sql
+    - .prophecy/ide/macros/evaluate_expression.json
+    - macros/macros.yml
+    createdAt: '2024-11-28 04:58:04'
+sqlSeeds: {}
+sqlSources: {}
+sqlUnreferencedSources: {}
+sqlPipeline:
+  name: sqlPipeline
+  description: null
+  author: abhisheks+e2etests@prophecy.io
+  createdAt: '2024-11-28 04:57:10'
+dependencies: []
+projectDependencies: {}
+flags:
+  shouldAddDefaultDependenciesIfAbsent: true
+pipelineConfigurations: {}
