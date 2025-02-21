@@ -23,7 +23,41 @@ functions:
   airflowFunctions: {}
   businessRules: {}
 subgraphs: {}
-sqlModels: {}
+sqlModels:
+  .prophecy/metadata/sqlmodels/m1:
+    name: m1
+    schema:
+      entityType: ''
+      providerType: Databricks
+      fields:
+      - name: c1
+        dataType:
+          type: String
+      - name: c2
+        dataType:
+          type: String
+      - name: xml_parsed_content
+        dataType:
+          type: Struct
+          fields:
+          - name: a
+            dataType:
+              type: Integer
+          - name: b
+            dataType:
+              type: Double
+    description: null
+    author: sony@prophecy.io
+    files:
+    - models/m1.sql
+    - .prophecy/ide/models/m1.json
+    sqlDependencies:
+      models: []
+      datasets: []
+      seeds: []
+      sources: []
+      snapshots: []
+    createdAt: '2025-02-21 12:39:33'
 sqlSnapshots: {}
 sqlTests: {}
 sqlMacros:
@@ -103,7 +137,24 @@ sqlMacros:
     - .prophecy/ide/macros/evaluate_expression.json
     - macros/macros.yml
     createdAt: '2024-11-28 04:58:04'
-sqlSeeds: {}
+sqlSeeds:
+  .prophecy/metadata/sqlseeds/c1:
+    name: c1
+    schema:
+      entityType: ''
+      providerType: Databricks
+      fields:
+      - name: c1
+        dataType:
+          type: String
+      - name: c2
+        dataType:
+          type: String
+    description: null
+    author: sony@prophecy.io
+    files:
+    - seeds/c1.csv
+    createdAt: '2025-02-21 12:42:02'
 sqlSources: {}
 sqlUnreferencedSources: {}
 sqlPipeline:

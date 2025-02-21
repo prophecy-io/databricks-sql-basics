@@ -1,0 +1,185 @@
+{
+  "id" : "m1",
+  "metainfo" : {
+    "label" : "m1",
+    "autoLayout" : false,
+    "staleState" : "file",
+    "sourceSuggestions" : {
+      "sources" : [ ]
+    },
+    "version" : 3
+  },
+  "processes" : {
+    "m1##XQdi28ob" : {
+      "id" : "m1##XQdi28ob",
+      "component" : "TargetModel",
+      "metadata" : {
+        "label" : "m1",
+        "x" : 20,
+        "y" : 20,
+        "phase" : 0,
+        "macroDependencies" : [ ]
+      },
+      "properties" : {
+        "customQueryDisabled" : true,
+        "customQuery" : false,
+        "incrementalEditorDisabled" : true,
+        "query" : "SELECT * \n\nFROM xml_parsed_data\n",
+        "incrementalKey" : false,
+        "incremental" : {
+          "expression" : "true"
+        }
+      },
+      "ports" : {
+        "inputs" : [ {
+          "id" : "qnGUH3Ie",
+          "slug" : "xml_parsed_data"
+        } ],
+        "outputs" : [ {
+          "id" : "UkavrA6L",
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : false,
+        "autoUpdateOnRun" : false
+      }
+    },
+    "ddIaGXUb79E_BIfel6dV1$$1SKPJVBcbPer768rXsGJH" : {
+      "id" : "ddIaGXUb79E_BIfel6dV1$$1SKPJVBcbPer768rXsGJH",
+      "component" : "XMLParse",
+      "metadata" : {
+        "label" : "xml_parsed_data",
+        "slug" : "xml_parsed_data",
+        "x" : -200,
+        "y" : 20,
+        "phase" : 0,
+        "macroDependencies" : [ ],
+        "comment" : "Improves the usability and analysis of XML data for better insights."
+      },
+      "properties" : {
+        "relation" : "c1",
+        "tableSchema" : null,
+        "_oldMacroProperties" : {
+          "macroName" : "XMLParse",
+          "projectName" : "DatabricksSqlBasics",
+          "parameters" : [ {
+            "name" : "relation",
+            "value" : "c1"
+          }, {
+            "name" : "columnToParse",
+            "value" : "c1"
+          }, {
+            "name" : "schema",
+            "value" : ""
+          } ]
+        },
+        "schema" : "",
+        "columnToParse" : "c1"
+      },
+      "ports" : {
+        "inputs" : [ {
+          "id" : "gBwGDSKK-aDqjBSVna0A-$$UGdw59ixEzZsf1GEo4AVP",
+          "schema" : {
+            "entityType" : "",
+            "providerType" : "Databricks",
+            "fields" : [ {
+              "name" : "c1",
+              "dataType" : {
+                "type" : "String"
+              }
+            }, {
+              "name" : "c2",
+              "dataType" : {
+                "type" : "String"
+              }
+            } ]
+          },
+          "slug" : "in0"
+        } ],
+        "outputs" : [ {
+          "id" : "-tL7rrILfoND0xeGqXbJJ$$_WIY2XlI-ssAVB-CM_SdQ",
+          "schema" : {
+            "entityType" : "",
+            "providerType" : "Databricks",
+            "fields" : [ {
+              "name" : "c1",
+              "dataType" : {
+                "type" : "String"
+              }
+            }, {
+              "name" : "c2",
+              "dataType" : {
+                "type" : "String"
+              }
+            }, {
+              "name" : "xml_parsed_content",
+              "dataType" : {
+                "type" : "Struct",
+                "fields" : [ {
+                  "name" : "a",
+                  "dataType" : {
+                    "type" : "Integer"
+                  }
+                }, {
+                  "name" : "b",
+                  "dataType" : {
+                    "type" : "Double"
+                  }
+                } ]
+              }
+            } ]
+          },
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : true,
+        "autoUpdateOnRun" : true
+      },
+      "componentInfo" : {
+        "gemId" : "XMLParse_DatabricksSqlBasics",
+        "name" : "XMLParse",
+        "projectName" : "DatabricksSqlBasics",
+        "sourceProjectName" : "DatabricksSqlBasics"
+      }
+    },
+    "gxm6fYy8C4lBgAxUQlLbo" : {
+      "id" : "gxm6fYy8C4lBgAxUQlLbo",
+      "component" : "Seed",
+      "metadata" : {
+        "label" : "c1",
+        "slug" : "c1",
+        "x" : -620,
+        "y" : 20,
+        "phase" : 0
+      },
+      "properties" : {
+        "table" : {
+          "name" : "c1",
+          "sourceType" : "Seed",
+          "alias" : ""
+        }
+      },
+      "ports" : {
+        "inputs" : [ ],
+        "outputs" : [ {
+          "id" : "VBD8UYTZxUn5Uf1_8-l_r",
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : false,
+        "autoUpdateOnRun" : false
+      }
+    }
+  },
+  "connections" : [ {
+    "id" : "Ho1TCthu28cFYRtiH2CGY",
+    "source" : "gxm6fYy8C4lBgAxUQlLbo",
+    "sourcePort" : "VBD8UYTZxUn5Uf1_8-l_r",
+    "target" : "ddIaGXUb79E_BIfel6dV1$$1SKPJVBcbPer768rXsGJH",
+    "targetPort" : "gBwGDSKK-aDqjBSVna0A-$$UGdw59ixEzZsf1GEo4AVP"
+  }, {
+    "id" : "qNmrskpkxpizkB8b1DhWJ$$D_uFpZ-0GtpaGjZzOQpdL",
+    "source" : "ddIaGXUb79E_BIfel6dV1$$1SKPJVBcbPer768rXsGJH",
+    "sourcePort" : "-tL7rrILfoND0xeGqXbJJ$$_WIY2XlI-ssAVB-CM_SdQ",
+    "target" : "m1##XQdi28ob",
+    "targetPort" : "qnGUH3Ie"
+  } ],
+  "component" : "Model"
+}

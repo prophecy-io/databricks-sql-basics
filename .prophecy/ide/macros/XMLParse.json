@@ -2,7 +2,7 @@
   "XMLParse" : {
     "name" : "XMLParse",
     "macroType" : "query",
-    "definition" : "\n    select *, from_xml ( {{ '`' ~ columnToParse ~ '`' }}, '{{ schema }}' ) as xml_parsed_content from {{ relation }}",
+    "definition" : "\n    select *, from_xml ( {{ '`' ~ columnToParse ~ '`' }}, 'a INT, b DOUBLE' ) as xml_parsed_content from {{ relation }}",
     "parameters" : {
       "type" : "record",
       "fields" : [ {

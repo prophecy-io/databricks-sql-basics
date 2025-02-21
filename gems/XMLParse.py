@@ -6,6 +6,17 @@ from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
+from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql.types import StructType, StructField, StringType
+
+from prophecy.cb.server.base.ComponentBuilderBase import ComponentCode, Diagnostic, SeverityLevelEnum, SubstituteDisabled
+from prophecy.cb.server.base.DatasetBuilderBase import DatasetSpec, DatasetProperties, Component
+from prophecy.cb.server.base.datatypes import SString, SFloat
+from prophecy.cb.ui.uispec import *
+from prophecy.cb.util.NumberUtils import parseFloat
+from prophecy.cb.server.base import WorkflowContext
+import dataclasses
+from prophecy.cb.migration import PropertyMigrationObj
 
 
 class ColumnParser(MacroSpec):
@@ -19,11 +30,12 @@ class ColumnParser(MacroSpec):
         # properties for the component with default values
         relation: str = "in0"
         columnToParse: str = ""
-        schema: Optional[StructType] = ""
+        schema: str = ""
+        tableSchema: Optional[StructType] = None
 
     def dialog(self) -> Dialog:
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        schemaTable = SchemaTable("").bindProperty("schema")
+        schemaTable = SchemaTable("").bindProperty("tableSchema")
         columnSelector = SchemaColumnsDropdown("Source Column Name").withSearchEnabled().bindSchema("component.ports.inputs[0].schema").bindProperty("columnToParse").showErrorsFor("columnToParse")
 
         return Dialog("ColumnParser").addElement(
@@ -52,7 +64,7 @@ class ColumnParser(MacroSpec):
         arguments = [
             "'" + props.relation + "'",
             "'" + props.columnToParse + "'",
-            "'" + str(props.schema) + "'"
+            "'" + props.schema + "'"
             ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
