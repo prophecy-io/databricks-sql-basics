@@ -8,33 +8,60 @@ from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
 
 
-class XMLParse(MacroSpec):
+class ColumnParser(MacroSpec):
     name: str = "XMLParse"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
 
 
     @dataclass(frozen=True)
-    class XMLParseProperties(MacroProperties):
+    class ColumnParserProperties(MacroProperties):
         # properties for the component with default values
-        parameter1: str = "'default_value_of_parameter1'"
+        relation: str = "in0"
+        columnToParse: str = ""
+        schema: str = ""
+        schemaInferCount: int = 40
 
     def dialog(self) -> Dialog:
-        return Dialog("Macro").addElement(
+        relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
+
+        sampleSchemaForXML = """
+STRUCT<
+  person: STRUCT<
+    id: INT,
+    name: STRUCT<
+      first: STRING,
+      last: STRING
+    >,
+    address: STRUCT<
+      street: STRING,
+      city: STRING,
+      zip: STRING
+    >
+  >
+>"""
+
+        return Dialog("ColumnParser").addElement(
             ColumnsLayout(gap="1rem", height="100%")
+            .addColumn(Ports(allowInputAddOrDelete=True), "content")
             .addColumn(
-                Ports(allowInputAddOrDelete=True),
-                "content"
-            )
-            .addColumn(
-                StackLayout()
+                StackLayout(height="100%")
+                .addElement(relationTextBox)
                 .addElement(
-                    TextBox("Table Name")
-                    .bindPlaceholder("Configure table name")
-                    .bindProperty("parameter1")
+                    ColumnsLayout("1rem")
+                    .addColumn(
+                        SchemaColumnsDropdown("Source Column Name")
+                        .withSearchEnabled()
+                        .bindSchema("component.ports.inputs[0].schema")
+                        .bindProperty("columnToParse")
+                        .showErrorsFor("columnToParse"),
+                        "0.4fr"
+                    )
                 )
-           )
-       )
+                .addElement(TextArea("Schema struct to parse the column", 20).bindProperty("schema").bindPlaceholder(sampleSchemaForXML)),
+                "1fr"
+            )
+        )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
@@ -44,17 +71,24 @@ class XMLParse(MacroSpec):
         # Handle changes in the component's state and return the new state
         return newState
 
-    def apply(self, props: XMLParseProperties) -> str:
+    def apply(self, props: ColumnParserProperties) -> str:
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        non_empty_param = ",".join([param for param in [props.parameter1] if param != ''])
+        arguments = [
+            "'" + props.relation + "'",
+            "'" + props.columnToParse + "'",
+            "'" + props.schema + "'"
+            ]
+        non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        return XMLParse.XMLParseProperties(
-            parameter1=parametersMap.get('parameter1')
+        return ColumnParser.ColumnParserProperties(
+            relation=parametersMap.get('relation')[1:-1],
+            columnToParse=parametersMap.get('columnToParse')[1:-1],
+            schema=parametersMap.get('schema')[1:-1]
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -63,7 +97,9 @@ class XMLParse(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("parameter1", properties.parameter1)
+                MacroParameter("relation", properties.relation),
+                MacroParameter("columnToParse", properties.columnToParse),
+                MacroParameter("schema", properties.schema)
             ],
         )
 

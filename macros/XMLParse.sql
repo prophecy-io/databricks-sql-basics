@@ -1,4 +1,4 @@
 
-{%- macro XMLParse(parameter1) -%}
-    select * from {{ parameter1 }}
+{%- macro XMLParse(relation, columnToParse, schema) -%}
+    select *, from_xml ( {{ '`' ~ columnToParse ~ '`' }}, '{{ schema }}' ) as xml_parsed_content from {{ relation }}
 {%- endmacro -%}
