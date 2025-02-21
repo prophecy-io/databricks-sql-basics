@@ -19,27 +19,12 @@ class ColumnParser(MacroSpec):
         # properties for the component with default values
         relation: str = "in0"
         columnToParse: str = ""
-        schema: str = ""
-        schemaInferCount: int = 40
+        schema: Optional[StructType] = ""
 
     def dialog(self) -> Dialog:
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-
-        sampleSchemaForXML = """
-STRUCT<
-  person: STRUCT<
-    id: INT,
-    name: STRUCT<
-      first: STRING,
-      last: STRING
-    >,
-    address: STRUCT<
-      street: STRING,
-      city: STRING,
-      zip: STRING
-    >
-  >
->"""
+        schemaTable = SchemaTable("").bindProperty("schema")
+        columnSelector = SchemaColumnsDropdown("Source Column Name").withSearchEnabled().bindSchema("component.ports.inputs[0].schema").bindProperty("columnToParse").showErrorsFor("columnToParse")
 
         return Dialog("ColumnParser").addElement(
             ColumnsLayout(gap="1rem", height="100%")
@@ -47,18 +32,8 @@ STRUCT<
             .addColumn(
                 StackLayout(height="100%")
                 .addElement(relationTextBox)
-                .addElement(
-                    ColumnsLayout("1rem")
-                    .addColumn(
-                        SchemaColumnsDropdown("Source Column Name")
-                        .withSearchEnabled()
-                        .bindSchema("component.ports.inputs[0].schema")
-                        .bindProperty("columnToParse")
-                        .showErrorsFor("columnToParse"),
-                        "0.4fr"
-                    )
-                )
-                .addElement(TextArea("Schema struct to parse the column", 20).bindProperty("schema").bindPlaceholder(sampleSchemaForXML)),
+                .addElement(ColumnsLayout("1rem").addColumn(columnSelector,"0.4fr"))
+                .addElement(schemaTable),
                 "1fr"
             )
         )
@@ -77,7 +52,7 @@ STRUCT<
         arguments = [
             "'" + props.relation + "'",
             "'" + props.columnToParse + "'",
-            "'" + props.schema + "'"
+            "'" + str(props.schema) + "'"
             ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
