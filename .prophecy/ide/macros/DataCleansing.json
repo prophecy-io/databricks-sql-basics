@@ -1,0 +1,397 @@
+{
+  "DataCleansing" : {
+    "name" : "DataCleansing",
+    "macroType" : "query",
+    "definition" : "\n    {% set columns_to_select = [] %}\n    {% if null_operation == \"remove_row_null_all_cols\" %}\n        {% set where_clause = [] %}\n        {% for col in columnNames %}\n            {% do where_clause.append('`' ~ col ~ '` IS NOT NULL') %}\n        {% endfor %}\n        {% set where_clause_sql = where_clause | join(' OR ') %}\n        \n        WITH cleansed_data AS (\n            SELECT *\n            FROM {{ relation }}\n            WHERE {{ where_clause_sql }}\n        )\n    {% elif null_operation == \"remove_col_null_all_rows\" %}\n        -- Remove columns where all rows are null\n        WITH cleansed_data AS (\n            SELECT {% for col in columnNames %}\n                CASE WHEN COUNT(`{{ col }}`) OVER() > 0 THEN `{{ col }}` ELSE NULL END AS `{{ col }}`{% if not loop.last %}, {% endif %}\n            {% endfor %}\n            FROM {{ relation }}\n        )\n    {% elif null_operation == \"remove_empty_rows_cols\" %}\n        {% set where_clause = [] %}\n        {% for col in columnNames %}\n            {% do where_clause.append('`' ~ col ~ '` IS NOT NULL') %}\n        {% endfor %}\n        {% set where_clause_sql = where_clause | join(' OR ') %}\n        \n        WITH cleansed_data AS (\n            SELECT {% for col in columnNames %}\n                CASE WHEN `{{ col }}` IS NOT NULL THEN `{{ col }}` ELSE NULL END AS `{{ col }}`{% if not loop.last %}, {% endif %}\n            {% endfor %}\n            FROM {{ relation }}\n            WHERE {{ where_clause_sql }}\n        )\n    {% else %}\n        -- If no null_operation is specified, just select all columns without filtering\n        WITH cleansed_data AS (\n            SELECT *\n            FROM {{ relation }}\n        )\n    {% endif %}\n\n    {% set col_type_map = {} %}\n    {% for col in schema %}\n        {% set col_type_map = col_type_map.update({ col.name: col.dataType | lower }) %}\n    {% endfor %}\n\n    {{ log(col_type_map, info = True) }}\n    {% for col_name in columnNames %}\n        {% set col_expr = '`' ~ col_name ~ '`' %}\n\n        {% if ( col_type_map.get(col_name) == \"integer\" and replaceNullForNumericFields ) %}\n            {% set col_expr = \"COALESCE(\" ~ col_expr ~ \", \" ~ replaceNullNumericWith | string ~ \")\" %}\n        {% endif %}\n        {% if ( col_type_map.get(col_name) == \"string\" and replaceNullTextFields ) %}\n            {% set col_expr = \"COALESCE(\" ~ col_expr ~ \", '\" ~ replaceNullTextWith ~ \"')\" %}\n        {% endif %}\n\n        {% if trimWhiteSpace %}\n            {% set col_expr = \"TRIM(\" ~ col_expr ~ \")\" %}\n        {% endif %}\n\n        {% if removeTabsLineBreaksAndDuplicateWhitespace %}\n            {% set col_expr = \"REPLACE(REGEXP_REPLACE(\" ~ col_expr ~ \", '\\\\\\\\s+', ' '), '\\\\n', '')\" %}\n        {% endif %}\n\n        {% if allWhiteSpace %}\n            {% set col_expr = \"REGEXP_REPLACE(\" ~ col_expr ~ \", '\\\\\\\\s+', '')\" %}\n        {% endif %}\n\n        {% if cleanLetters %}\n            {% set col_expr = \"REGEXP_REPLACE(\" ~ col_expr ~ \", '[^A-Za-z]', '')\" %}\n        {% endif %}\n\n        {% if cleanPunctuations %}\n            {% set col_expr = \"REGEXP_REPLACE(\" ~ col_expr ~ \", '[^a-zA-Z0-9\\\\s]', '')\" %}\n        {% endif %}\n\n        {% if cleanNumbers %}\n            {% set col_expr = \"REGEXP_REPLACE(\" ~ col_expr ~ \", '\\\\\\\\d+', '')\" %}\n        {% endif %}\n\n        {% if makeLowercase %}\n            {% set col_expr = \"LOWER(\" ~ col_expr ~ \")\" %}\n        {% endif %}\n\n        {% if makeUppercase %}\n            {% set col_expr = \"UPPER(\" ~ col_expr ~ \")\" %}\n        {% endif %}\n\n        {% if makeTitlecase %}\n            {% set col_expr = \"INITCAP(\" ~ col_expr ~ \")\" %}\n        {% endif %}\n        {% set col_expr = col_expr ~ \" :: \" ~ col_type_map.get(col_name) %}\n        {% do columns_to_select.append(col_expr ~ \" AS `\" ~ col_name ~ \"`\") %}\n    {% endfor %}\n\n    -- Final SQL statement with transformations applied\n    SELECT\n        {{ columns_to_select | join(',\\n    ') }}\n    FROM cleansed_data",
+    "parameters" : {
+      "type" : "record",
+      "fields" : [ {
+        "name" : "relation",
+        "kind" : {
+          "type" : "value"
+        },
+        "optional" : false,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "schema",
+        "kind" : {
+          "type" : "value"
+        },
+        "optional" : false,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "null_operation",
+        "kind" : {
+          "type" : "value",
+          "value" : "\"remove_row_null_all_cols\""
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "columnNames",
+        "kind" : {
+          "type" : "value",
+          "value" : "[]"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "replaceNullTextFields",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "replaceNullTextWith",
+        "kind" : {
+          "type" : "value",
+          "value" : "\"NA\""
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "replaceNullForNumericFields",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "replaceNullNumericWith",
+        "kind" : {
+          "type" : "value",
+          "value" : "0"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "trimWhiteSpace",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "removeTabsLineBreaksAndDuplicateWhitespace",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "allWhiteSpace",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "cleanLetters",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "cleanPunctuations",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "cleanNumbers",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "makeLowercase",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "makeUppercase",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      }, {
+        "name" : "makeTitlecase",
+        "kind" : {
+          "type" : "value",
+          "value" : "False"
+        },
+        "optional" : true,
+        "comment" : "",
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      } ]
+    },
+    "staleState" : "none",
+    "propertiesFile" : {
+      "name" : "macros",
+      "content" : "---\nversion: 2\nmacros:\n- name: \"evaluate_expression\"\n  arguments:\n  - name: \"expression\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"expression\"\n- name: \"BulkColumnExpressions\"\n  arguments:\n  - name: \"relation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"columnNames\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"expressionToBeApplied\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"prefixSuffixToBeAdded\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"changeOutputFieldName\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"isPrefix\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"changeOutputFieldType\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"castOutputTypeName\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"copyOriginalColumns\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"remainingColumns\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"prefixSuffixOption\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"dataType\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"query\"\n- name: \"BulkColumnRename\"\n  arguments:\n  - name: \"relation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"columnNames\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"renameMethod\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"prefix\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"suffix\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"customExpression\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"query\"\n- name: \"ColumnParser\"\n  arguments:\n  - name: \"relation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"parserType\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"columnToParse\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"schema\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"query\"\n- name: \"DataCleansing\"\n  arguments:\n  - name: \"relation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"schema\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"null_operation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"columnNames\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"replaceNullTextFields\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"replaceNullTextWith\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"replaceNullForNumericFields\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"replaceNullNumericWith\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"trimWhiteSpace\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"removeTabsLineBreaksAndDuplicateWhitespace\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"allWhiteSpace\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"cleanLetters\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"cleanPunctuations\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"cleanNumbers\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"makeLowercase\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"makeUppercase\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"makeTitlecase\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"query\"\n- name: \"DynamicSelect\"\n  arguments:\n  - name: \"relation\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"schema\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"targetTypes\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"selectUsing\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  - name: \"customExpression\"\n    type: \"value\"\n    description: \"{\\\"ProphecyType\\\": \\\"value\\\"} {\\\"ProphecyType\\\": \\\"value\\\"}\"\n  macroType: \"query\"\n",
+      "path" : "DatabricksSqlBasics/macros/macros.yml",
+      "projectConfiguration" : null,
+      "folderConfiguration" : {
+        "version" : 2,
+        "macros" : [ {
+          "name" : "evaluate_expression",
+          "arguments" : [ {
+            "name" : "expression",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "expression"
+        }, {
+          "name" : "BulkColumnExpressions",
+          "arguments" : [ {
+            "name" : "relation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "columnNames",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "expressionToBeApplied",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "prefixSuffixToBeAdded",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "changeOutputFieldName",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "isPrefix",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "changeOutputFieldType",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "castOutputTypeName",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "copyOriginalColumns",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "remainingColumns",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "prefixSuffixOption",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "dataType",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "query"
+        }, {
+          "name" : "BulkColumnRename",
+          "arguments" : [ {
+            "name" : "relation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "columnNames",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "renameMethod",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "prefix",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "suffix",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "customExpression",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "query"
+        }, {
+          "name" : "ColumnParser",
+          "arguments" : [ {
+            "name" : "relation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "parserType",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "columnToParse",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "schema",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "query"
+        }, {
+          "name" : "DataCleansing",
+          "arguments" : [ {
+            "name" : "relation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "schema",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "null_operation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "columnNames",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "replaceNullTextFields",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "replaceNullTextWith",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "replaceNullForNumericFields",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "replaceNullNumericWith",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "trimWhiteSpace",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "removeTabsLineBreaksAndDuplicateWhitespace",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "allWhiteSpace",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "cleanLetters",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "cleanPunctuations",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "cleanNumbers",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "makeLowercase",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "makeUppercase",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "makeTitlecase",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "query"
+        }, {
+          "name" : "DynamicSelect",
+          "arguments" : [ {
+            "name" : "relation",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "schema",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "targetTypes",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "selectUsing",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          }, {
+            "name" : "customExpression",
+            "type" : "value",
+            "description" : "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
+          } ],
+          "macroType" : "query"
+        } ]
+      },
+      "packagesYml" : null,
+      "editable" : true
+    },
+    "version" : 0
+  }
+}

@@ -60,6 +60,17 @@ sqlMacros:
     - macros/macros.yml
     - gems/ColumnParser.py
     createdAt: '2024-11-28 05:00:34'
+  .prophecy/metadata/sqlmacros/XMLParse:
+    name: XMLParse
+    macroType: query
+    description: null
+    author: sony@prophecy.io
+    files:
+    - macros/XMLParse.sql
+    - .prophecy/ide/macros/XMLParse.json
+    - macros/macros.yml
+    - gems/XMLParse.py
+    createdAt: '2025-02-21 12:22:58'
   .prophecy/metadata/sqlmacros/BulkColumnExpressions:
     name: BulkColumnExpressions
     macroType: query

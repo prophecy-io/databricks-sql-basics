@@ -1,0 +1,21 @@
+{
+  "XMLParse" : {
+    "name" : "XMLParse",
+    "macroType" : "query",
+    "definition" : "\n    select * from {{ parameter1 }}",
+    "parameters" : {
+      "type" : "record",
+      "fields" : [ {
+        "name" : "parameter1",
+        "kind" : {
+          "type" : "value"
+        },
+        "optional" : false,
+        "isWorkflowNodeConfiguration" : false,
+        "isReferenced" : false
+      } ]
+    },
+    "staleState" : "none",
+    "version" : 0
+  }
+}

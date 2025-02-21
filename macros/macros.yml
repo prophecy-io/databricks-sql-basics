@@ -154,3 +154,9 @@ macros:
     type: "value"
     description: "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
   macroType: "query"
+- name: "XMLParse"
+  arguments:
+  - name: "parameter1"
+    type: "value"
+    description: "{\"ProphecyType\": \"value\"}"
+  macroType: "query"
