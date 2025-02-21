@@ -17,6 +17,8 @@ from prophecy.cb.util.NumberUtils import parseFloat
 from prophecy.cb.server.base import WorkflowContext
 import dataclasses
 from prophecy.cb.migration import PropertyMigrationObj
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, IntegerType
+
 
 
 class ColumnParser(MacroSpec):
