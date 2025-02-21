@@ -31,11 +31,11 @@ class ColumnParser(MacroSpec):
         relation: str = "in0"
         columnToParse: str = ""
         schema: str = ""
-        tableSchema: Optional[StructType] = None
+        tableSchema: Optional[StructType] = StructType([StructField("teacher", StringType(), True),StructField("student", ArrayType(StructType([StructField("name", StringType(), True),StructField("rank", IntegerType(), True)])), True)])
 
     def dialog(self) -> Dialog:
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        schemaTable = SchemaTable("").bindProperty("tableSchema")
+        # schemaTable = SchemaTable("").bindProperty("tableSchema")
         columnSelector = SchemaColumnsDropdown("Source Column Name").withSearchEnabled().bindSchema("component.ports.inputs[0].schema").bindProperty("columnToParse").showErrorsFor("columnToParse")
 
         return Dialog("ColumnParser").addElement(
@@ -44,8 +44,8 @@ class ColumnParser(MacroSpec):
             .addColumn(
                 StackLayout(height="100%")
                 .addElement(relationTextBox)
-                .addElement(ColumnsLayout("1rem").addColumn(columnSelector,"0.4fr"))
-                .addElement(schemaTable),
+                .addElement(ColumnsLayout("1rem").addColumn(columnSelector,"0.4fr")),
+                # .addElement(schemaTable),
                 "1fr"
             )
         )
@@ -57,6 +57,8 @@ class ColumnParser(MacroSpec):
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
         return newState
+        # schema = newState.properties.schema
+        # return newState.bindProperties(dataclasses.replace(newState.properties, tableSchema=schema))
 
     def apply(self, props: ColumnParserProperties) -> str:
         # generate the actual macro call given the component's state
@@ -64,29 +66,36 @@ class ColumnParser(MacroSpec):
         arguments = [
             "'" + props.relation + "'",
             "'" + props.columnToParse + "'",
-            "'" + props.schema + "'"
+            "'" + props.schema + "'",
+            "'" + props.tableSchema + "'"
             ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
+        structSchema = StructType.fromDDL(parametersMap.get('tableSchema')[1:-1])
         parametersMap = self.convertToParameterMap(properties.parameters)
         return ColumnParser.ColumnParserProperties(
             relation=parametersMap.get('relation')[1:-1],
             columnToParse=parametersMap.get('columnToParse')[1:-1],
-            schema=parametersMap.get('schema')[1:-1]
+            schema=parametersMap.get('schema')[1:-1],
+            tableSchema=structSchema
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
+        schemaString = ""
+        if properties.tableSchema is not None:
+            schemaString = properties.tableSchema.simpleString()
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation", properties.relation),
                 MacroParameter("columnToParse", properties.columnToParse),
-                MacroParameter("schema", properties.schema)
+                MacroParameter("schema", properties.schema),
+                MacroParameter("tableSchema", schemaString)
             ],
         )
 
