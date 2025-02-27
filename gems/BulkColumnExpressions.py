@@ -42,10 +42,11 @@ class BulkColumnExpressions(MacroSpec):
     def dialog(self) -> Dialog:
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
         prefixSuffixDropDown = SelectBox("Add Prefix / Suffix").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption")
-        copyOriginalColumns = Checkbox("Maintain the original columns and add ").bindProperty("copyOriginalColumns")
+        copyOriginalColumns = Checkbox("").bindProperty("copyOriginalColumns")
+        maintainOriginalColumns = NativeText("Maintain the original columns and add")
         prefixSuffixBox = TextBox("",ignoreTitle=True).bindPlaceholder("Orig_").bindProperty("prefixSuffixToBeAdded")
-        changeOutputColumnNames = ColumnsLayout(gap="1rem").addColumn(copyOriginalColumns).addColumn(prefixSuffixDropDown).addColumn(prefixSuffixBox)
-
+        toTheNewColumns = NativeText("to the new columns")
+        changeOutputColumnNames = ColumnsLayout(gap="1rem").addColumn(copyOriginalColumns, "0.1fr").addColumn(maintainOriginalColumns).addColumn(prefixSuffixDropDown).addColumn(prefixSuffixBox).addColumn(toTheNewColumns)
         dialog = Dialog("BulkColumnExpressions").addElement(ColumnsLayout(gap="1rem", height="100%") \
         .addColumn(Ports(allowInputAddOrDelete=True), "content") \
         .addColumn(StackLayout(height="100%").addElement(relationTextBox) \
@@ -62,10 +63,14 @@ class BulkColumnExpressions(MacroSpec):
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
-        prefix = newState.properties.prefixSuffixOption == "Prefix"
+        remainingColumns = []
+        for field in fields_array:
+            if field["name"] not in newState.properties.columnNames:
+                remainingColumns.append(field["name"])
         newProperties = dataclasses.replace(
             newState.properties, 
             schemaColDropdownSchema = StructType(struct_fields),
+            remainingColumns = remainingColumns
         )
         return newState.bindProperties(newProperties)
 
