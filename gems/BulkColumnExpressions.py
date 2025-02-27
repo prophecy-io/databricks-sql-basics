@@ -41,7 +41,7 @@ class BulkColumnExpressions(MacroSpec):
 
     def dialog(self) -> Dialog:
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        prefixSuffixDropDown = SelectBox("Add Prefix / Suffix").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption")
+        prefixSuffixDropDown = SelectBox("").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption")
         copyOriginalColumns = Checkbox("").bindProperty("copyOriginalColumns")
         maintainOriginalColumns = NativeText("Maintain the original columns and add")
         prefixSuffixBox = TextBox("",ignoreTitle=True).bindPlaceholder("Orig_").bindProperty("prefixSuffixToBeAdded")
