@@ -102,12 +102,11 @@ class ColumnParser(MacroSpec):
         relation: str = "in0"
         columnToParse: str = ""
         schema: str = ""
-        tableSchema: Optional[StructType] = StructType([StructField("teacher", StringType(), True),StructField("student", ArrayType(StructType([StructField("name", StringType(), True),StructField("rank", IntegerType(), True)])), True)])
-
+        tableSchema: Optional[StructType] = None
     def dialog(self) -> Dialog:
         print("aa")
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        # schemaTable = SchemaTable("").bindProperty("tableSchema")  # Uncommented this line
+        schemaTable = SchemaTable("").bindProperty("tableSchema")  # Uncommented this line
         columnSelector = SchemaColumnsDropdown("Source Column Name").withSearchEnabled().bindSchema("component.ports.inputs[0].schema").bindProperty("columnToParse").showErrorsFor("columnToParse")
 
         return Dialog("ColumnParser").addElement(
@@ -116,6 +115,7 @@ class ColumnParser(MacroSpec):
             .addColumn(
                 StackLayout(height="100%")
                 .addElement(relationTextBox)
+                .addElement(schemaTable)
                 .addElement(ColumnsLayout("1rem").addColumn(columnSelector,"0.4fr")),
                 "1fr"
             )
