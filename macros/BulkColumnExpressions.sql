@@ -1,8 +1,8 @@
-{% macro BulkColumnExpressions(relation, columnNames, expressionToBeApplied, prefixSuffixToBeAdded='', changeOutputFieldName=false, isPrefix=true, changeOutputFieldType=false, castOutputTypeName='', copyOriginalColumns=false, remainingColumns=[], prefixSuffixOption = 'prefix / suffix', dataType = 'String') %}
+{% macro BulkColumnExpressions(relation, columnNames, expressionToBeApplied, prefixSuffixToBeAdded='', castOutputTypeName='', copyOriginalColumns=false, remainingColumns=[], prefixSuffixOption = 'prefix / suffix') %}
     {% set column_expressions = [] %}
 
     {% for column in columnNames %}
-        {% if changeOutputFieldName %}
+        {% if copyOriginalColumns %}
             {% if prefixSuffixOption | lower == "prefix" %}
                 {% set alias = prefixSuffixToBeAdded ~ column %}
             {% else %}
@@ -13,10 +13,6 @@
         {% endif %}
 
         {% set column_expr = expressionToBeApplied | replace('column_value', '`' ~ column ~ '`') | replace('column_name', "'" ~ column ~ "'") %}
-        
-        {% if changeOutputFieldType %}
-            {% set column_expr = column_expr ~ '::' ~ castOutputTypeName %}
-        {% endif %}
         
         {% do column_expressions.append(column_expr ~ ' as ' ~ '`' ~ alias ~ '`') %}
     {% endfor %}
