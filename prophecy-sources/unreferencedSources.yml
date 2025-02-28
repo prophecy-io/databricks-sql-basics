@@ -1,3 +1,14 @@
 ---
 version: 2
-unreferencedSources: []
+unreferencedSources:
+- name: "xyz"
+  columns:
+  - name: "name"
+    dataType:
+      type: "String"
+  - name: "age"
+    dataType:
+      type: "String"
+  - name: "email"
+    dataType:
+      type: "String"

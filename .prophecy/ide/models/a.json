@@ -1,0 +1,189 @@
+{
+  "id" : "a",
+  "metainfo" : {
+    "label" : "a",
+    "autoLayout" : false,
+    "staleState" : "none",
+    "sourceSuggestions" : {
+      "sources" : [ ]
+    },
+    "version" : 3
+  },
+  "processes" : {
+    "a##v8uZ8Hon" : {
+      "id" : "a##v8uZ8Hon",
+      "component" : "TargetModel",
+      "metadata" : {
+        "label" : "a",
+        "x" : 20,
+        "y" : 20,
+        "phase" : 0,
+        "macroDependencies" : [ ]
+      },
+      "properties" : {
+        "customQueryDisabled" : true,
+        "customQuery" : false,
+        "incrementalEditorDisabled" : true,
+        "query" : "SELECT * \n\nFROM bulk_column_expressions\n",
+        "incrementalKey" : false,
+        "incremental" : {
+          "expression" : "true"
+        }
+      },
+      "ports" : {
+        "inputs" : [ {
+          "id" : "UGXpeTrx",
+          "slug" : "bulk_column_expressions"
+        } ],
+        "outputs" : [ {
+          "id" : "dqMRnJeP",
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : false,
+        "autoUpdateOnRun" : false
+      }
+    },
+    "f0sCZBy8wEJmSVoEOphvm" : {
+      "id" : "f0sCZBy8wEJmSVoEOphvm",
+      "component" : "UnreferencedSource",
+      "metadata" : {
+        "label" : "xyz",
+        "slug" : "xyz",
+        "x" : -580,
+        "y" : -200,
+        "phase" : 0
+      },
+      "properties" : {
+        "table" : {
+          "name" : "xyz",
+          "sourceType" : "UnreferencedSource",
+          "alias" : ""
+        }
+      },
+      "ports" : {
+        "inputs" : [ ],
+        "outputs" : [ {
+          "id" : "V75n49RfOCiIRDJ_9yP49",
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : false,
+        "autoUpdateOnRun" : false
+      }
+    },
+    "b8WmDY_HgXZ36rBR9Vmcw$$Dio6Eq4xrYyeA0jFxj17E" : {
+      "id" : "b8WmDY_HgXZ36rBR9Vmcw$$Dio6Eq4xrYyeA0jFxj17E",
+      "component" : "BulkColumnExpressions",
+      "metadata" : {
+        "label" : "bulk_column_expressions",
+        "slug" : "bulk_column_expressions",
+        "x" : -140,
+        "y" : -40,
+        "phase" : 0,
+        "macroDependencies" : [ ],
+        "comment" : "Processes and transforms specific columns for enhanced data analysis."
+      },
+      "properties" : {
+        "copyOriginalColumns" : true,
+        "relation" : "xyz",
+        "remainingColumns" : [ "email" ],
+        "schemaColDropdownSchema" : {
+          "type" : "struct",
+          "fields" : [ {
+            "name" : "name",
+            "type" : "string",
+            "nullable" : true,
+            "metadata" : {
+              "description" : "",
+              "mappings" : [ ],
+              "tags" : [ ]
+            }
+          }, {
+            "name" : "age",
+            "type" : "string",
+            "nullable" : true,
+            "metadata" : {
+              "description" : "",
+              "mappings" : [ ],
+              "tags" : [ ]
+            }
+          }, {
+            "name" : "email",
+            "type" : "string",
+            "nullable" : true,
+            "metadata" : {
+              "description" : "",
+              "mappings" : [ ],
+              "tags" : [ ]
+            }
+          } ]
+        },
+        "columnNames" : [ "name", "age" ],
+        "_oldMacroProperties" : {
+          "macroName" : "BulkColumnExpressions",
+          "projectName" : "DatabricksSqlBasics",
+          "parameters" : [ {
+            "name" : "relation",
+            "value" : "xyz"
+          }, {
+            "name" : "columnNames",
+            "value" : "[\"name\", \"age\"]"
+          }, {
+            "name" : "expressionToBeApplied",
+            "value" : "upper(column_value)"
+          }, {
+            "name" : "prefixSuffixToBeAdded",
+            "value" : "VA"
+          }, {
+            "name" : "castOutputTypeName",
+            "value" : "Select output type"
+          }, {
+            "name" : "copyOriginalColumns",
+            "value" : "true"
+          }, {
+            "name" : "remainingColumns",
+            "value" : "[\"email\"]"
+          }, {
+            "name" : "prefixSuffixOption",
+            "value" : "Suffix"
+          } ]
+        },
+        "castOutputTypeName" : "Select output type",
+        "expressionToBeApplied" : "upper(column_value)",
+        "prefixSuffixToBeAdded" : "VA",
+        "prefixSuffixOption" : "Suffix"
+      },
+      "ports" : {
+        "inputs" : [ {
+          "id" : "kIXuh1RdfsWo7PSZNdbwY$$icoiqy_DPgLsEGYtYI3IG",
+          "slug" : "in0"
+        } ],
+        "outputs" : [ {
+          "id" : "4r4NRdH9njSVJmeL5_5RW$$D4LxchWsgwtJNqsAGIqt0",
+          "slug" : "out"
+        } ],
+        "isCustomOutputSchema" : false,
+        "autoUpdateOnRun" : false
+      },
+      "componentInfo" : {
+        "gemId" : "BulkColumnExpressions_DatabricksSqlBasics",
+        "name" : "BulkColumnExpressions",
+        "projectName" : "DatabricksSqlBasics",
+        "sourceProjectName" : "DatabricksSqlBasics"
+      }
+    }
+  },
+  "connections" : [ {
+    "id" : "QVaXOWohklLaZV4I8-adL",
+    "source" : "f0sCZBy8wEJmSVoEOphvm",
+    "sourcePort" : "V75n49RfOCiIRDJ_9yP49",
+    "target" : "b8WmDY_HgXZ36rBR9Vmcw$$Dio6Eq4xrYyeA0jFxj17E",
+    "targetPort" : "kIXuh1RdfsWo7PSZNdbwY$$icoiqy_DPgLsEGYtYI3IG"
+  }, {
+    "id" : "iDA371zKEEfmhtu51J2bz$$7tZIQqJibM1YAWQTIs6G7",
+    "source" : "b8WmDY_HgXZ36rBR9Vmcw$$Dio6Eq4xrYyeA0jFxj17E",
+    "sourcePort" : "4r4NRdH9njSVJmeL5_5RW$$D4LxchWsgwtJNqsAGIqt0",
+    "target" : "a##v8uZ8Hon",
+    "targetPort" : "UGXpeTrx"
+  } ],
+  "component" : "Model"
+}

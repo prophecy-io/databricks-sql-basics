@@ -23,7 +23,40 @@ functions:
   airflowFunctions: {}
   businessRules: {}
 subgraphs: {}
-sqlModels: {}
+sqlModels:
+  .prophecy/metadata/sqlmodels/a:
+    name: a
+    schema:
+      entityType: ''
+      providerType: Databricks
+      fields:
+      - name: nameVA
+        dataType:
+          type: String
+      - name: ageVA
+        dataType:
+          type: String
+      - name: email
+        dataType:
+          type: String
+      - name: name
+        dataType:
+          type: String
+      - name: age
+        dataType:
+          type: String
+    description: null
+    author: sony@prophecy.io
+    files:
+    - models/a.sql
+    - .prophecy/ide/models/a.json
+    sqlDependencies:
+      models: []
+      datasets: []
+      seeds: []
+      sources: []
+      snapshots: []
+    createdAt: '2025-02-27 11:31:31'
 sqlSnapshots: {}
 sqlTests: {}
 sqlMacros:
@@ -82,6 +115,17 @@ sqlMacros:
     - macros/macros.yml
     - gems/BulkColumnRename.py
     createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/MultiColumnEdit:
+    name: MultiColumnEdit
+    macroType: query
+    description: null
+    author: sony@prophecy.io
+    files:
+    - macros/MultiColumnEdit.sql
+    - .prophecy/ide/macros/MultiColumnEdit.json
+    - macros/macros.yml
+    - gems/MultiColumnEdit.py
+    createdAt: '2025-02-27 11:31:46'
   .prophecy/metadata/sqlmacros/evaluate_expression:
     name: evaluate_expression
     macroType: expression
@@ -94,7 +138,27 @@ sqlMacros:
     createdAt: '2024-11-28 04:58:04'
 sqlSeeds: {}
 sqlSources: {}
-sqlUnreferencedSources: {}
+sqlUnreferencedSources:
+  .prophecy/metadata/sqlunreferencedsources/xyz:
+    name: xyz
+    schema:
+      entityType: ''
+      providerType: databricks
+      fields:
+      - name: name
+        dataType:
+          type: String
+      - name: age
+        dataType:
+          type: String
+      - name: email
+        dataType:
+          type: String
+    description: null
+    author: sony@prophecy.io
+    files:
+    - prophecy-sources/unreferencedSources.yml
+    createdAt: '2025-02-27 11:33:29'
 sqlPipeline:
   name: sqlPipeline
   description: null
