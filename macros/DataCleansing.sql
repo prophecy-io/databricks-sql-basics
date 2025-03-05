@@ -21,7 +21,7 @@
         {{ log("Removing rows where all columns are null", info=True) }}
         {%- set where_clause = [] -%}
         {%- for col in schema -%}
-            {%- do where_clause.append(col['name'] ~ ' IS NOT NULL') -%}
+            {%- do where_clause.append('"' ~ col['name'] ~ '"' ~ ' IS NOT NULL') -%}
         {%- endfor -%}
         {%- set where_clause_sql = where_clause | join(' OR ') -%}
 
@@ -54,7 +54,7 @@
 
         {{ log(col_type_map, info = True) }}
         {%- for col_name in columnNames -%}
-            {%- set col_expr = col_name -%}
+            {%- set col_expr = '"' ~ col_name ~ '"' -%}
 
             {%- if col_type_map.get(col_name) == "number" -%}
                 {%- if replaceNullForNumericFields -%}
@@ -108,7 +108,7 @@
 
             {{ log("Appending transformed column expression", info=True) }}
             {%- set col_expr = col_expr ~ "::" ~ col_type_map.get(col_name) -%}
-            {%- do columns_to_select.append(col_expr ~ ' AS ' ~ col_name ~ '') -%}
+            {%- do columns_to_select.append(col_expr ~ ' AS ' ~ '"' ~ col_name ~ '"') -%}
         {%- endfor -%}
 
         {# Get the schema of cleansed data #}
@@ -117,7 +117,7 @@
             {% set flag_dict = {"flag": false} %}
             {%- for expr in columns_to_select -%}
                 {# Split on 'AS' to get the alias; assumes expression contains "AS" #}
-                {%- set parts = expr.split(' AS ') -%}
+                {%- set parts = expr.split(' AS "') -%}
                 {%- set alias = parts[-1] | trim | replace('"', '') | upper -%}
 
                 {%- if col_name_val['name'] | trim | replace('"', '') | upper == alias -%}
@@ -128,7 +128,7 @@
             {%- endfor -%}
 
             {%- if flag_dict.flag == false -%}
-                {%- do output_columns.append(col_name_val['name']) -%}
+                {%- do output_columns.append('"' ~ col_name_val['name'] ~ '"') -%}
             {%- endif -%}
         {%- endfor -%}        
         {{ log("Columns after expression evaluation:" ~ output_columns, info=True) }}
