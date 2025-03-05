@@ -13,7 +13,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 
 class DataCleansing(MacroSpec):
     name: str = "DataCleansing"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "SnowflakeSqlBasics"
     category: str = "Transform"
 
 
@@ -23,8 +23,10 @@ class DataCleansing(MacroSpec):
         relation: str = "in0"
         schema: str = ''
 
+        # null check operations
+        removeRowNullAllCols: bool = False
+        
         # clean checks
-        null_operation: str = "remove_row_null_all_cols"
         columnNames: List[str] = field(default_factory=list)
         replaceNullTextFields: bool = False
         replaceNullTextWith: str = "NA"
@@ -36,9 +38,7 @@ class DataCleansing(MacroSpec):
         cleanLetters: bool = False
         cleanPunctuations: bool = False
         cleanNumbers: bool = False
-        makeLowercase: bool = False
-        makeUppercase: bool = False
-        makeTitlecase: bool = False
+        modifyCase: str = "Keep original"
 
         # sql argument strings
         columnNamesSql: str = ''
@@ -52,39 +52,45 @@ class DataCleansing(MacroSpec):
         cleanLettersSql: str = ''
         cleanPunctuationsSql: str = ''
         cleanNumbersSql: str = ''
-        makeLowercaseSql: str = ''
-        makeUppercaseSql: str = ''
-        makeTitlecaseSql: str = ''
 
         # for schema column dropdown
         schemaColDropdownSchema: Optional[StructType] = StructType([])
 
     def dialog(self) -> Dialog:
+        horizontalDivider = HorizontalDivider()
         relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        nullOpSelectBox = (SelectBox("")
-                           .addOption("1. Remove rows with null in every column", "remove_row_null_all_cols")
-                           .addOption("2. Remove columns with null in every row", "remove_col_null_all_rows")
-                           .addOption("3. Remove both empty rows and columns (both 1 and 2)",
-                                      "remove_empty_rows_cols")
-                           .bindProperty("null_operation"))
 
-        selectCol = (SchemaColumnsDropdown("Select columns you want to clean").withMultipleSelection().bindSchema("schemaColDropdownSchema").bindProperty("columnNames"))
-        options = (StackLayout(gap="2em")
-        .addElement(TitleElement("Clean data"))
-        .addElement(
-            AlertBox(
-                variant="warning",
-                _children=[
-                    Markdown(
-                        "Following operations are only applicable on string columns\n"
-                        "Examples - \n"
-                        "* **Trim whitespaces** - ' hello prophecy ' => 'hello prophecy'\n"
-                        "* **Remove numbers** - 'hello 123 prophecy' => 'hello prophecy'\n"
-                        "* **Make titlecase** - 'hello prophecy' => 'Hello Prophecy'\n"
-                    )
-                ]
+        nullOpCheckBox = (ColumnsLayout(gap="1rem", height="100%")
+            .addColumn(StackLayout(height="100%")
+                        .addElement(Checkbox("Remove rows with null in every column").bindProperty("removeRowNullAllCols"))
             )
         )
+
+        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema("schemaColDropdownSchema").bindProperty("columnNames"))
+
+        options = (ColumnsLayout(gap="1rem", height="100%")
+                    .addColumn(StackLayout(height="100%")
+                        .addElement(Checkbox("Leading and trailing whitespaces").bindProperty("trimWhiteSpace"))
+                        .addElement(Checkbox("Tabs, line breaks and duplicate whitespaces").bindProperty(
+                "removeTabsLineBreaksAndDuplicateWhitespace"))
+                        .addElement(Checkbox("All whitespaces").bindProperty("allWhiteSpace"))
+                        .addElement(Checkbox("Letters").bindProperty("cleanLetters"))
+                        .addElement(Checkbox("Numbers").bindProperty("cleanNumbers"))
+                        .addElement(Checkbox("Punctuations").bindProperty("cleanPunctuations"))
+                        .addElement(NativeText("Modify case"))
+                        .addElement(SelectBox("")
+                           .addOption("Keep original", "keepOriginal")
+                           .addOption("lowercase", "makeLowercase")
+                           .addOption("UPPERCASE", "makeUppercase")
+                           .addOption("Title Case","makeTitlecase")
+                           .bindProperty("modifyCase")
+                        )
+                    )
+            )
+
+        #TBD: Need to Remove
+        options_to_remove = (StackLayout(gap="2em")
+        .addElement(NativeText("Remove unwanted characters"))
         .addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(Checkbox("Trim whitespaces").bindProperty("trimWhiteSpace"), "1fr")
@@ -97,13 +103,8 @@ class DataCleansing(MacroSpec):
             .addColumn(Checkbox("Remove letters").bindProperty("cleanLetters"), "1fr")
             .addColumn(Checkbox("Remove punctuations").bindProperty("cleanPunctuations"), "2fr")
             .addColumn(Checkbox("Remove numbers").bindProperty("cleanNumbers"), "1fr")
-        )
-        .addElement(
-            ColumnsLayout(gap="1rem", height="100%")
-            .addColumn(Checkbox("Make lowercase").bindProperty("makeLowercase"), "1fr")
-            .addColumn(Checkbox("Make uppercase").bindProperty("makeUppercase"), "2fr")
-            .addColumn(Checkbox("Make titlecase").bindProperty("makeTitlecase"), "1fr")
         ))
+        
         return Dialog("DataCleansing") \
             .addElement(
             ColumnsLayout(gap="1rem", height="100%")
@@ -113,13 +114,19 @@ class DataCleansing(MacroSpec):
             )
             .addColumn(
                 StackLayout()
+                .addElement(horizontalDivider)
                 .addElement(relationTextBox)
-                .addElement(TitleElement("Remove Null Data"))
-                .addElement(nullOpSelectBox)
+                .addElement(horizontalDivider)
+                .addElement(TitleElement("Remove nulls from entire dataset"))
+                .addElement(nullOpCheckBox)
+                .addElement(horizontalDivider)
+                .addElement(TitleElement("Select columns to clean"))
                 .addElement(selectCol)
-                .addElement(TitleElement("Replace Null values in Column"))
+                .addElement(horizontalDivider)
+                .addElement(TitleElement("Clean selected columns"))
+                .addElement(NativeText("Replace null values in column"))
                 .addElement(
-                    Checkbox("Replace Null for String/Text fields").bindProperty("replaceNullTextFields")
+                    Checkbox("For string columns").bindProperty("replaceNullTextFields")
                 )
                 .addElement(
                     Condition()
@@ -133,7 +140,7 @@ class DataCleansing(MacroSpec):
                     )
                 )
                 .addElement(
-                    Checkbox("Replace Null for Numeric fields").bindProperty("replaceNullForNumericFields")
+                    Checkbox("For numeric columns").bindProperty("replaceNullForNumericFields")
                 )
                 .addElement(
                     Condition()
@@ -146,7 +153,9 @@ class DataCleansing(MacroSpec):
                         .bindProperty("replaceNullNumericWith"),
                     )
                 )
+                .addElement(NativeText("Remove unwanted characters"))
                 .addElement(options)
+                .addElement(horizontalDivider)
             )
         )
 
@@ -176,7 +185,7 @@ class DataCleansing(MacroSpec):
         arguments = [
             "'" + props.relation + "'",
             props.schema,
-            "'" + props.null_operation + "'",
+            "'" + props.modifyCase + "'",
             str(props.columnNames),
             str(props.replaceNullTextFields).lower(),
             "'" + str(props.replaceNullTextWith) + "'",
@@ -188,9 +197,7 @@ class DataCleansing(MacroSpec):
             str(props.cleanLetters).lower(),
             str(props.cleanPunctuations).lower(),
             str(props.cleanNumbers).lower(),
-            str(props.makeLowercase).lower(),
-            str(props.makeUppercase).lower(),
-            str(props.makeTitlecase).lower()
+            str(props.removeRowNullAllCols).lower()
         ]
 
 
@@ -203,9 +210,9 @@ class DataCleansing(MacroSpec):
         print("parametersMapisHere")
         print(parametersMap)
         return DataCleansing.DataCleansingProperties(
-            relation=parametersMap.get('relation')[1:-1],
+            relation=parametersMap.get('relation'),
             schema=parametersMap.get('schema'),
-            null_operation=parametersMap.get('null_operation')[1:-1],
+            modifyCase=parametersMap.get('modifyCase'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
             replaceNullTextFields=parametersMap.get('replaceNullTextFields').lower() == 'true',
             replaceNullTextWith=parametersMap.get('replaceNullTextWith')[1:-1],
@@ -217,9 +224,7 @@ class DataCleansing(MacroSpec):
             cleanLetters=parametersMap.get('cleanLetters').lower() == 'true',
             cleanPunctuations=parametersMap.get('cleanPunctuations').lower() == 'true',
             cleanNumbers=parametersMap.get('cleanNumbers').lower() == 'true',
-            makeLowercase=parametersMap.get('makeLowercase').lower() == 'true',
-            makeUppercase=parametersMap.get('makeUppercase').lower() == 'true',
-            makeTitlecase=parametersMap.get('makeTitlecase').lower() == 'true'
+            removeRowNullAllCols=parametersMap.get('removeRowNullAllCols').lower() == 'true'
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -230,7 +235,7 @@ class DataCleansing(MacroSpec):
             parameters=[
                 MacroParameter("relation", properties.relation),
                 MacroParameter("schema", properties.schema),
-                MacroParameter("null_operation", properties.null_operation),
+                MacroParameter("modifyCase", properties.modifyCase),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("replaceNullTextFields", str(properties.replaceNullTextFields).lower()),
                 MacroParameter("replaceNullTextWith", properties.replaceNullTextWith),
@@ -242,10 +247,6 @@ class DataCleansing(MacroSpec):
                 MacroParameter("cleanLetters", str(properties.cleanLetters).lower()),
                 MacroParameter("cleanPunctuations", str(properties.cleanPunctuations).lower()),
                 MacroParameter("cleanNumbers", str(properties.cleanNumbers).lower()),
-                MacroParameter("makeLowercase", str(properties.makeLowercase).lower()),
-                MacroParameter("makeUppercase", str(properties.makeUppercase).lower()),
-                MacroParameter("makeTitlecase", str(properties.makeTitlecase).lower())
+                MacroParameter("removeRowNullAllCols", str(properties.removeRowNullAllCols).lower())
             ],
         )
-
-
