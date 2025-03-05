@@ -21,7 +21,7 @@
         {{ log("Removing rows where all columns are null", info=True) }}
         {%- set where_clause = [] -%}
         {%- for col in schema -%}
-            {%- do where_clause.append('"' ~ col['name'] ~ '" IS NOT NULL') -%}
+            {%- do where_clause.append(col['name'] ~ ' IS NOT NULL') -%}
         {%- endfor -%}
         {%- set where_clause_sql = where_clause | join(' OR ') -%}
 
@@ -35,7 +35,7 @@
 
     {%- else  -%}
         {{ log("Returning all columns since dataset-specific cleansing operations are not specified", info=True) }}
-        {%- set cleansed_cte -%}    
+        {%- set cleansed_cte -%}
             WITH cleansed_data AS (
                 SELECT *
                 FROM {{ relation }}
@@ -52,9 +52,9 @@
             {%- set col_type_map = col_type_map.update({ col.name: col.dataType | lower }) -%}
         {%- endfor -%}
 
-        {{ log(col_type_map, info = True) }}    
+        {{ log(col_type_map, info = True) }}
         {%- for col_name in columnNames -%}
-            {%- set col_expr = '"' ~ col_name ~ '"' -%}
+            {%- set col_expr = col_name -%}
 
             {%- if col_type_map.get(col_name) == "number" -%}
                 {%- if replaceNullForNumericFields -%}
@@ -108,8 +108,8 @@
 
             {{ log("Appending transformed column expression", info=True) }}
             {%- set col_expr = col_expr ~ "::" ~ col_type_map.get(col_name) -%}
-            {%- do columns_to_select.append(col_expr ~ ' AS "' ~ col_name ~ '"') -%}
-        {%- endfor -%}  
+            {%- do columns_to_select.append(col_expr ~ ' AS ' ~ col_name ~ '') -%}
+        {%- endfor -%}
 
         {# Get the schema of cleansed data #}
         {%- set output_columns = [] -%}
@@ -117,7 +117,7 @@
             {% set flag_dict = {"flag": false} %}
             {%- for expr in columns_to_select -%}
                 {# Split on 'AS' to get the alias; assumes expression contains "AS" #}
-                {%- set parts = expr.split(' AS "') -%}
+                {%- set parts = expr.split(' AS ') -%}
                 {%- set alias = parts[-1] | trim | replace('"', '') | upper -%}
 
                 {%- if col_name_val['name'] | trim | replace('"', '') | upper == alias -%}

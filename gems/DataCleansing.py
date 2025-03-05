@@ -1,10 +1,5 @@
-
-from dataclasses import dataclass
 import dataclasses
 import json
-
-from collections import defaultdict
-from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
@@ -13,7 +8,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 
 class DataCleansing(MacroSpec):
     name: str = "DataCleansing"
-    projectName: str = "SnowflakeSqlBasics"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
 
 
