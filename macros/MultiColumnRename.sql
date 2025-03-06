@@ -22,7 +22,7 @@
             {%- endif -%}
 
         {%- elif renameMethod == 'advancedRename' -%}
-                {%- set custom_expr_result = DatabricksSqlBasics.evaluate_expression(customExpression | replace('column_name',  "\'" ~ column ~ "\'")) -%}
+                {%- set custom_expr_result = DatabricksSqlBasics.evaluate_expression(customExpression | replace('column_name',  "\'" ~ column ~ "\'"),column) -%}
                 {%- set custom_expr_result_trimmed = custom_expr_result | trim -%}
                 {%- set renamed_column = column ~ " AS " ~ custom_expr_result_trimmed -%}           
         {%- endif -%}

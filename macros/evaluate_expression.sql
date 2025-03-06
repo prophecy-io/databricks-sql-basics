@@ -1,4 +1,4 @@
-{% macro evaluate_expression(expression) %}
+{% macro evaluate_expression(expression,column) %}
 {% set sql_query = 'select ' ~ expression ~ ' as result' %}
 {% set result = run_query(sql_query) %}
 {% if result %}
@@ -9,6 +9,6 @@
   {% endif %}
 {% else %}
   {# Added to fake dbt query at compile time #}
-  {{ "`" ~ expression ~ "`" | string }}
+  {{ column }}
 {% endif %}
 {% endmacro %}
