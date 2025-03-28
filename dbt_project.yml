@@ -24,8 +24,3 @@ model-paths:
 macro-paths:
 - "macros"
 target-path: "target"
-
-# ==================
-# Model Configs
-# ==================
-models: null

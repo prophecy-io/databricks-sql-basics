@@ -154,3 +154,12 @@ macros:
     type: "value"
     description: "{\"ProphecyType\": \"value\"} {\"ProphecyType\": \"value\"}"
   macroType: "query"
+- name: "generate_schema_name"
+  arguments:
+  - name: "custom_schema_name"
+    type: "value"
+    description: "{\"ProphecyType\": \"value\"}"
+  - name: "node"
+    type: "value"
+    description: "{\"ProphecyType\": \"value\"}"
+  macroType: "expression"
