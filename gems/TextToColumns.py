@@ -22,7 +22,9 @@ class TextToColumns(MacroSpec):
         split_strategy: Optional[str] = ""
         noOfColumns: int = 1
         leaveExtraCharLastCol: str = "Leave extra in last column"
-        outputRootName: str = ""
+        splitColumnPrefix: str = "root"
+        splitColumnSuffix: str = "generated"
+        splitRowsColumnName: str = "generated_column"
         # for schema column dropdown
         schemaColDropdownSchema: Optional[StructType] = StructType([])            
 
@@ -119,12 +121,32 @@ class TextToColumns(MacroSpec):
                                         .bindProperty("leaveExtraCharLastCol")
                                     )
                                     .addElement(
-                                                TextBox("Output root name")
-                                                    .bindPlaceholder("Enter the root name")
-                                                    .bindProperty("outputRootName")
+                                        ColumnsLayout(gap="1rem", height="100%")
+                                        .addColumn(
+                                                TextBox("Column Prefix")
+                                                    .bindPlaceholder("Enter Generated Column Prefix")
+                                                    .bindProperty("splitColumnPrefix")
+                                        )
+                                        .addColumn(
+                                                TextBox("Column Suffix")
+                                                    .bindPlaceholder("Enter Generated Column Suffix")
+                                                    .bindProperty("splitColumnSuffix")
+                                        )                                        
                                     )                                                                        
-                             )
+                                )
                     )
+                    .addElement(
+                        Condition()
+                             .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitRows"))
+                             .then(
+                                ColumnsLayout(gap="1rem", height="100%")
+                                        .addColumn(
+                                                TextBox("Generated Column Name")
+                                                    .bindPlaceholder("Enter Generated Column Name")
+                                                    .bindProperty("splitRowsColumnName")
+                                        )
+                             )                       
+                    )                    
                 )
         )
 
@@ -143,9 +165,16 @@ class TextToColumns(MacroSpec):
             if component.properties.noOfColumns < 1:
                 diagnostics.append(
                     Diagnostic("properties.noOfColumns", "No of columns should be more than or equals to 1", SeverityLevelEnum.Error))
-            if len(component.properties.outputRootName) == 0:
+            if len(component.properties.splitColumnPrefix) == 0:
                 diagnostics.append(
-                    Diagnostic("properties.outputRootName", "Please provide an output column prefix", SeverityLevelEnum.Error))                    
+                    Diagnostic("properties.splitColumnPrefix", "Please provide a prefix for generated column", SeverityLevelEnum.Error))
+            if len(component.properties.splitColumnSuffix) == 0:
+                diagnostics.append(
+                    Diagnostic("properties.splitColumnSuffix", "Please provide a suffix for generated column", SeverityLevelEnum.Error))
+        if component.properties.split_strategy == "splitRows":
+            if len(component.properties.splitRowsColumnName) == 0:
+                diagnostics.append(
+                    Diagnostic("properties.splitRowsColumnName", "Please provide a generated column name", SeverityLevelEnum.Error))
 
         return diagnostics
 
@@ -168,7 +197,9 @@ class TextToColumns(MacroSpec):
             "'" + props.split_strategy + "'",
             str(props.noOfColumns),
             "'" + props.leaveExtraCharLastCol + "'",
-            "'" + props.outputRootName + "'"
+            "'" + props.splitColumnPrefix + "'",
+            "'" + props.splitColumnSuffix + "'",
+            "'" + props.splitRowsColumnName + "'"
         ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
@@ -183,7 +214,9 @@ class TextToColumns(MacroSpec):
             split_strategy=parametersMap.get('split_strategy'),
             noOfColumns=int(parametersMap.get('noOfColumns')),
             leaveExtraCharLastCol=parametersMap.get('leaveExtraCharLastCol'),
-            outputRootName=parametersMap.get('outputRootName')
+            splitColumnPrefix=parametersMap.get('splitColumnPrefix'),
+            splitColumnSuffix=parametersMap.get('splitColumnSuffix'),
+            splitRowsColumnName=parametersMap.get('splitRowsColumnName')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -197,7 +230,9 @@ class TextToColumns(MacroSpec):
                 MacroParameter("split_strategy", properties.split_strategy),
                 MacroParameter("noOfColumns", str(properties.noOfColumns)),
                 MacroParameter("leaveExtraCharLastCol", properties.leaveExtraCharLastCol),
-                MacroParameter("outputRootName", properties.outputRootName)
+                MacroParameter("splitColumnPrefix", properties.splitColumnPrefix),
+                MacroParameter("splitColumnSuffix", properties.splitColumnSuffix),
+                MacroParameter("splitRowsColumnName", properties.splitRowsColumnName)
             ],
         )
 

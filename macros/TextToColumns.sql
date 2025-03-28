@@ -5,7 +5,9 @@
     split_strategy,
     noOfColumns,
     leaveExtraCharLastCol,
-    outputRootName
+    splitColumnPrefix,
+    splitColumnSuffix,
+    splitRowsColumnName    
     ) %}
 
 {# 
@@ -26,16 +28,16 @@
     SELECT *,
         {# Extract tokens positionally (Spark arrays are 0-indexed) #}
         {%- for i in range(1, noOfColumns) %}
-            regexp_replace(trim(tokens[{{ i - 1 }}]), '^"|"$', '') AS {{ outputRootName }}_{{ i }}_{{ 'generated' }}{% if not loop.last or leaveExtraCharLastCol %}, {% endif %}
+            regexp_replace(trim(tokens[{{ i - 1 }}]), '^"|"$', '') AS {{ splitColumnPrefix }}_{{ i }}_{{ splitColumnSuffix }}{% if not loop.last or leaveExtraCharLastCol %}, {% endif %}
         {%- endfor %}
         {%- if leaveExtraCharLastCol %}
             CASE 
                 WHEN size(tokens) >= {{ noOfColumns }} 
                     THEN array_join(slice(tokens, {{ noOfColumns }}, greatest(size(tokens) - {{ noOfColumns }} + 1, 0)), '{{ delimiter }}')
                 ELSE null 
-            END AS {{ outputRootName }}_{{ noOfColumns }}_{{ 'generated' }}
+            END AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
         {%- else %}
-            tokens[{{ noOfColumns - 1 }}] AS {{ outputRootName }}_{{ noOfColumns }}_{{ 'generated' }}
+            tokens[{{ noOfColumns - 1 }}] AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
         {%- endif %}
     FROM source
     )
@@ -43,7 +45,7 @@
 
 {%- elif split_strategy == 'splitRows' -%}
     SELECT r.*,
-        trim(regexp_replace(s.col, '[{}_]', ' ')) AS {{ columnName }}_{{ 'generated' }}
+        trim(regexp_replace(s.col, '[{}_]', ' ')) AS {{ splitRowsColumnName }}
     FROM {{ relation_name }} r
     LATERAL VIEW explode(
         split(
