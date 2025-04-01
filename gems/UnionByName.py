@@ -19,7 +19,7 @@ class TextToColumns(MacroSpec):
         relation_name: List[str] = field(default_factory=list) 
         firstSchema: str = ''
         secondSchema: str = ''
-        missingColumnOps: str = ""
+        missingColumnOps: str = "nameBasedUnionOperation"
 
     def get_relation_names(self,component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -50,19 +50,19 @@ class TextToColumns(MacroSpec):
             .addColumn(   
                     StackLayout()
                     .addElement(
-                        RadioGroup("")                        
-                        .addOption(
-                            "Union By Name (Allow Missing Columns)",
-                            "allowMissingColumns",
-                            ("UnionAll"),
-                            ("Lets you safely combine two Dataframes by matching column names and filling in missing ones with nulls")
-                        )
+                        RadioGroup("")
                         .addOption(
                             "Union By Name (No Missing Column)",
                             "nameBasedUnionOperation",
                             ("UnionAll"),
                             ("Union of two DataFrames with same columns in different order")
-                        )                                   
+                        )
+                        .addOption(
+                            "Union By Name (Allow Missing Columns)",
+                            "allowMissingColumns",
+                            ("UnionAll"),
+                            ("Lets you safely combine two Dataframes by matching column names and filling in missing ones with nulls")
+                        )                                             
                         .setOptionType("button")
                         .setVariant("large")
                         .setButtonStyle("solid")

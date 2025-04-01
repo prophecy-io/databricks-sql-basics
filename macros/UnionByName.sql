@@ -21,15 +21,6 @@
         {% set _ = second_columns.append(col.name | upper) %}
     {%- endfor -%}
 
-    {# Validate matching columns have the same dataType #}
-    {%- for col in firstSchema -%}
-        {%- for sec_col in secondSchema if sec_col.name == col.name -%}
-            {%- if col.dataType != sec_col.dataType -%}
-                {{ exceptions.raise_compiler_error("Data type mismatch for column " ~ col.name ~ ": " ~ col.dataType ~ " vs " ~ sec_col.dataType) }}
-            {%- endif -%}
-        {%- endfor -%}
-    {%- endfor -%}
-
     {# If nameBasedUnionOperation, ensure both schemas have exactly the same set of columns #}
     {%- if missingColumnOps == 'nameBasedUnionOperation' -%}
         {%- set diff_first = [] -%}
