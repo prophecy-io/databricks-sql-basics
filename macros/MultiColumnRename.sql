@@ -1,5 +1,5 @@
 {% macro MultiColumnRename(
-    relation,
+    relation_name,
     schema,
     columnNames,
     renameMethod,
@@ -52,5 +52,5 @@
 
     select 
         {{ output_columns | join(',\n    ') }}
-    from {{ relation }}
+    from {{ relation_name }}
 {% endmacro %}

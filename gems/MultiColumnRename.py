@@ -1,18 +1,13 @@
 from dataclasses import dataclass
 import dataclasses
+import json
 
+from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from prophecy.cb.ui.uispec import *
-from prophecy.cb.server.base.ComponentBuilderBase import Diagnostic, SeverityLevelEnum
-from prophecy.cb.server.base.ComponentBuilderBase import *
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-from pyspark.sql import *
-from pyspark.sql.functions import *
-from pyspark.sql.types import StructType, StructField
-
-import json
 
 class MultiColumnRename(MacroSpec):
     name: str = "MultiColumnRename"
@@ -31,11 +26,29 @@ class MultiColumnRename(MacroSpec):
         editWith: str = ""
         suffix: str = ""
         customExpression: str = ""
-        relation: str = ""
+        relation_name: List[str] = field(default_factory=list)
+
+    def get_relation_names(self,component: Component, context: SqlContext):
+        all_upstream_nodes = []
+        for inputPort in component.ports.inputs:
+            upstreamNode = None
+            for connection in context.graph.connections:
+                if connection.targetPort == inputPort.id:
+                    upstreamNodeId = connection.source
+                    upstreamNode = context.graph.nodes.get(upstreamNodeId)
+            all_upstream_nodes.append(upstreamNode)
+        
+        relation_name = []
+        for upstream_node in all_upstream_nodes:
+            if upstream_node is None or upstream_node.slug is None:
+                relation_name.append("")
+            else:
+                relation_name.append(upstream_node.slug)
+        
+        return relation_name
 
     def dialog(self) -> Dialog:
         horizontalDivider = HorizontalDivider()
-        relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
         renameMethod = SelectBox("")\
                         .addOption("Edit prefix/suffix", "editPrefixSuffix")\
                         .addOption("Advanced rename", "advancedRename")\
@@ -47,14 +60,11 @@ class MultiColumnRename(MacroSpec):
                 .addColumn(Ports(allowInputAddOrDelete=True),"content")
                 .addColumn(
                     StackLayout(height="100%")
-                    .addElement(horizontalDivider)
-                    .addElement(relationTextBox)
-                    .addElement(horizontalDivider)
                     .addElement(TitleElement("Select columns to rename"))
                     .addElement(
                         SchemaColumnsDropdown("")
                         .withMultipleSelection()
-                        .bindSchema("schema")
+                        .bindSchema("component.ports.inputs[0].schema")
                         .bindProperty("columnNames")
                     )
                     .addElement(horizontalDivider)
@@ -141,21 +151,26 @@ class MultiColumnRename(MacroSpec):
         portSchema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
         struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
+        relation_name = self.get_relation_names(newState,context)
 
         newProperties = dataclasses.replace(
             newState.properties, 
-            schema = StructType(struct_fields)
+            schema = StructType(struct_fields),
+            relation_name = relation_name
         )
         return newState.bindProperties(newProperties)
 
     def apply(self, props: MultiColumnRenameProperties) -> str:
+        # Get the table name
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
         # Get existing column names
         column_names = [field.name for field in props.schema.fields]
 
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + props.relation + "'",
+            "'" + table_name + "'",
             str(column_names),
             str(props.columnNames),
             "'" + str(props.renameMethod) + "'",
@@ -172,7 +187,7 @@ class MultiColumnRename(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return MultiColumnRename.MultiColumnRenameProperties(
-            relation=parametersMap.get('relation'),
+            relation_name=parametersMap.get('relation_name'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
             renameMethod=parametersMap.get('renameMethod'),
             editOperation=parametersMap.get('editOperation'),
@@ -187,7 +202,7 @@ class MultiColumnRename(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation", properties.relation),
+                MacroParameter("relation_name", properties.relation_name),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("renameMethod", properties.renameMethod),
                 MacroParameter("editOperation", properties.editOperation),
@@ -196,3 +211,16 @@ class MultiColumnRename(MacroSpec):
                 MacroParameter("customExpression", properties.customExpression)
             ],
         )
+
+    def updateInputPortSlug(self, component: Component, context: SqlContext):
+        portSchema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
+        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
+        relation_name = self.get_relation_names(component,context)
+
+        newProperties = dataclasses.replace(
+            component.properties, 
+            schema = StructType(struct_fields),
+            relation_name = relation_name
+        )
+        return component.bindProperties(newProperties)
