@@ -1,5 +1,5 @@
 {% macro DataCleansing(
-    relation,
+    relation_name,
     schema,
     modifyCase,
     columnNames=[],
@@ -28,7 +28,7 @@
         {%- set cleansed_cte -%}
             WITH cleansed_data AS (
                 SELECT *
-                FROM {{ relation }}
+                FROM {{ relation_name }}
                 WHERE {{ where_clause_sql }}
             )
         {%- endset -%}
@@ -38,7 +38,7 @@
         {%- set cleansed_cte -%}
             WITH cleansed_data AS (
                 SELECT *
-                FROM {{ relation }}
+                FROM {{ relation_name }}
             )
         {%- endset -%}
     {%- endif -%}

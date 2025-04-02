@@ -9,14 +9,14 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 class DataCleansing(MacroSpec):
     name: str = "DataCleansing"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Transform"
+    category: str = "Prepare"
 
 
     @dataclass(frozen=True)
     class DataCleansingProperties(MacroProperties):
         # properties for the component with default values
-        relation: str = "in0"
         schema: str = ''
+        relation_name: List[str] = field(default_factory=list)
 
         # null check operations
         removeRowNullAllCols: bool = False
@@ -35,33 +35,34 @@ class DataCleansing(MacroSpec):
         cleanNumbers: bool = False
         modifyCase: str = "Keep original"
 
-        # sql argument strings
-        columnNamesSql: str = ''
-        replaceNullTextFieldsSql: str = ''
-        replaceNullTextWithSql: str = ''
-        replaceNullForNumericFieldsSql: str = ''
-        replaceNullNumericWithSql: str = ''
-        trimWhiteSpaceSql: str = ''
-        removeTabsLineBreaksAndDuplicateWhitespaceSql: str = ''
-        allWhiteSpaceSql: str = ''
-        cleanLettersSql: str = ''
-        cleanPunctuationsSql: str = ''
-        cleanNumbersSql: str = ''
-
-        # for schema column dropdown
-        schemaColDropdownSchema: Optional[StructType] = StructType([])
+    def get_relation_names(self,component: Component, context: SqlContext):
+        all_upstream_nodes = []
+        for inputPort in component.ports.inputs:
+            upstreamNode = None
+            for connection in context.graph.connections:
+                if connection.targetPort == inputPort.id:
+                    upstreamNodeId = connection.source
+                    upstreamNode = context.graph.nodes.get(upstreamNodeId)
+            all_upstream_nodes.append(upstreamNode)
+        
+        relation_name = []
+        for upstream_node in all_upstream_nodes:
+            if upstream_node is None or upstream_node.slug is None:
+                relation_name.append("")
+            else:
+                relation_name.append(upstream_node.slug)
+        
+        return relation_name
 
     def dialog(self) -> Dialog:
         horizontalDivider = HorizontalDivider()
-        relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-
         nullOpCheckBox = (ColumnsLayout(gap="1rem", height="100%")
             .addColumn(StackLayout(height="100%")
                         .addElement(Checkbox("Remove rows with null in every column").bindProperty("removeRowNullAllCols"))
             )
         )
 
-        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema("schemaColDropdownSchema").bindProperty("columnNames"))
+        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty("columnNames"))
 
         options = (ColumnsLayout(gap="1rem", height="100%")
                     .addColumn(StackLayout(height="100%")
@@ -109,9 +110,6 @@ class DataCleansing(MacroSpec):
             )
             .addColumn(
                 StackLayout()
-                .addElement(horizontalDivider)
-                .addElement(relationTextBox)
-                .addElement(horizontalDivider)
                 .addElement(TitleElement("Remove nulls from entire dataset"))
                 .addElement(nullOpCheckBox)
                 .addElement(horizontalDivider)
@@ -160,25 +158,26 @@ class DataCleansing(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        schemaString = str(newState.ports.inputs[0].schema).replace("'", '"')
-        print("trying to convert")
-        print(schemaString)
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
+        relation_name = self.get_relation_names(newState,context)
 
         newProperties = dataclasses.replace(
             newState.properties, 
-            schema=json.dumps(fields_array), 
-            schemaColDropdownSchema = StructType(struct_fields)
+            schema=json.dumps(fields_array),
+            relation_name = relation_name
         )
         return newState.bindProperties(newProperties)
 
     def apply(self, props: DataCleansingProperties) -> str:
-        # generate the actual macro call given the component's state
+        # Get the table name
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
+        # generate the actual macro call given the component's 
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + props.relation + "'",
+            "'" + table_name + "'",
             props.schema,
             "'" + props.modifyCase + "'",
             str(props.columnNames),
@@ -205,7 +204,7 @@ class DataCleansing(MacroSpec):
         print("parametersMapisHere")
         print(parametersMap)
         return DataCleansing.DataCleansingProperties(
-            relation=parametersMap.get('relation'),
+            relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
             modifyCase=parametersMap.get('modifyCase'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
@@ -228,7 +227,7 @@ class DataCleansing(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation", properties.relation),
+                MacroParameter("relation_name", properties.relation_name),
                 MacroParameter("schema", properties.schema),
                 MacroParameter("modifyCase", properties.modifyCase),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
@@ -245,3 +244,16 @@ class DataCleansing(MacroSpec):
                 MacroParameter("removeRowNullAllCols", str(properties.removeRowNullAllCols).lower())
             ],
         )
+
+    def updateInputPortSlug(self, component: Component, context: SqlContext):
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
+        struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
+        relation_name = self.get_relation_names(component,context)
+
+        newProperties = dataclasses.replace(
+            component.properties, 
+            schema=json.dumps(fields_array),
+            relation_name = relation_name
+        )
+        return component.bindProperties(newProperties)
