@@ -1,18 +1,14 @@
-{% macro evaluate_expression(expression) %}
-
+{% macro evaluate_expression(expression,column) %}
 {% set sql_query = 'select ' ~ expression ~ ' as result' %}
 {% set result = run_query(sql_query) %}
-
- 
 {% if result %}
-  {% for row in result %}
-    {{row['result']}}
-  {% endfor %}
-   
+  {% if execute %}
+    {% for row in result.rows %}
+      {{row[0]}}
+    {% endfor %}
+  {% endif %}
 {% else %}
-  {{ log("Query failed or returned no results", info = True) }}
-  {{ log(expression, info = True) }}
+  {# Added to fake dbt query at compile time #}
+  {{ column }}
 {% endif %}
 {% endmacro %}
-
- 
