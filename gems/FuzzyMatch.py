@@ -23,7 +23,6 @@ class FuzzyMatch(MacroSpec):
     @dataclass(frozen=True)
     class FuzzyMatchProperties(MacroProperties):
         # properties for the component with default values
-        relation: str = ""
         mode: str = ""
         sourceIdCol: str = ""
         recordIdCol: str = ""
@@ -31,6 +30,26 @@ class FuzzyMatch(MacroSpec):
         activeTab: str = "configuration"
         includeSimilarityScore: bool = False
         matchFields: List[MatchField] = field(default_factory=list)
+        relation_name: List[str] = field(default_factory=list)
+
+    def get_relation_names(self, component: Component, context: SqlContext):
+        all_upstream_nodes = []
+        for inputPort in component.ports.inputs:
+            upstreamNode = None
+            for connection in context.graph.connections:
+                if connection.targetPort == inputPort.id:
+                    upstreamNodeId = connection.source
+                    upstreamNode = context.graph.nodes.get(upstreamNodeId)
+            all_upstream_nodes.append(upstreamNode)
+
+        relation_name = []
+        for upstream_node in all_upstream_nodes:
+            if upstream_node is None or upstream_node.slug is None:
+                relation_name.append("")
+            else:
+                relation_name.append(upstream_node.slug)
+
+        return relation_name
 
     def onButtonClick(self, state: Component[FuzzyMatchProperties]):
         _matchFields = state.properties.matchFields
@@ -40,9 +59,6 @@ class FuzzyMatch(MacroSpec):
     def dialog(self) -> Dialog:
         configurations = (
             StackLayout()
-            .addElement(
-                TextBox("Dataframe names seperated with Comma").bindPlaceholder("in0,in1").bindProperty("relation")
-            )
             .addElement(TitleElement("Configuration"))
             .addElement(
                 SelectBox("Merge/Purge Mode")
@@ -143,11 +159,15 @@ class FuzzyMatch(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        return newState
+        relation_name = self.get_relation_names(component, context)
+        return (replace(newState, properties=replace(newState.properties, relation_name=relation_name)))
 
     def apply(self, props: FuzzyMatchProperties) -> str:
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
+
+        # Get the Single Table Name
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
         # Group match fields by their match function.
         grouped_match_fields = defaultdict(list)
@@ -158,7 +178,7 @@ class FuzzyMatch(MacroSpec):
         match_fields_map = dict(grouped_match_fields)
 
         arguments = [
-            "'" + props.relation + "'",
+            "'" + table_name + "'",
             "'" + props.mode + "'",
             "'" + props.sourceIdCol + "'",
             "'" + props.recordIdCol + "'",
@@ -173,7 +193,7 @@ class FuzzyMatch(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return FuzzyMatch.FuzzyMatchProperties(
-            relation=parametersMap.get('relation'),
+            relation_name=parametersMap.get('relation_name'),
             mode=parametersMap.get('mode'),
             sourceIdCol=parametersMap.get('sourceIdCol'),
             recordIdCol=parametersMap.get('recordIdCol'),
@@ -187,7 +207,7 @@ class FuzzyMatch(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation", properties.relation),
+                MacroParameter("relation_name", properties.relation_name),
                 MacroParameter("mode", properties.mode),
                 MacroParameter("sourceIdCol", properties.sourceIdCol),
                 MacroParameter("recordIdCol", properties.recordIdCol),
@@ -195,3 +215,7 @@ class FuzzyMatch(MacroSpec):
                 MacroParameter("includeSimilarityScore", str(properties.includeSimilarityScore).lower())
             ],
         )
+
+    def updateInputPortSlug(self, component: Component, context: SqlContext):
+        relation_name = self.get_relation_names(component, context)
+        return (replace(component, properties=replace(component.properties, relation_name=relation_name)))

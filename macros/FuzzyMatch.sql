@@ -119,11 +119,14 @@ replace_record_ids as (
     from impose_function_match
 ),
 final_output as (
-    select distinct
+    select
         record_id1,
         record_id2,
-        round(sum(similarity_score) over(partition by record_id1, record_id2) / count(1) over(partition by record_id1, record_id2),2) as similarity_score
+        round(avg(similarity_score),2) as similarity_score
     from replace_record_ids
+    group by
+    record_id1,
+    record_id2
 )
     {# Include similarity score if True #}
     {%- if includeSimilarityScore -%}
