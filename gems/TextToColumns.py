@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 import dataclasses
 import json
+import re
 
 from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
+
 
 class TextToColumns(MacroSpec):
     name: str = "TextToColumns"
@@ -26,9 +28,9 @@ class TextToColumns(MacroSpec):
         splitColumnSuffix: str = "generated"
         splitRowsColumnName: str = "generated_column"
         # for schema column dropdown
-        schemaColDropdownSchema: Optional[StructType] = StructType([])            
+        schemaColDropdownSchema: Optional[StructType] = StructType([])
 
-    def get_relation_names(self,component: Component, context: SqlContext):
+    def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
             upstreamNode = None
@@ -37,14 +39,14 @@ class TextToColumns(MacroSpec):
                     upstreamNodeId = connection.source
                     upstreamNode = context.graph.nodes.get(upstreamNodeId)
             all_upstream_nodes.append(upstreamNode)
-        
+
         relation_name = []
         for upstream_node in all_upstream_nodes:
             if upstream_node is None or upstream_node.slug is None:
                 relation_name.append("")
             else:
                 relation_name.append(upstream_node.slug)
-        
+
         return relation_name
 
     def dialog(self) -> Dialog:
@@ -56,98 +58,99 @@ class TextToColumns(MacroSpec):
             )
             .addColumn(
                 StackLayout()
+                .addElement(
+                    StackLayout(height="100%")
                     .addElement(
+                        StackLayout()
+                        .addElement(
+                            SchemaColumnsDropdown("Select Column to Split")
+                            .withSearchEnabled()
+                            .bindSchema("component.ports.inputs[0].schema")
+                            .bindProperty("columnNames")
+                            .showErrorsFor("columnNames")
+                        )
+                    )
+                    .addElement(
+                        TextBox("Delimiter").bindPlaceholder("delimiter").bindProperty("delimiter")
+                    )
+                    .addElement(
+                        AlertBox(
+                            variant="success",
+                            _children=[
+                                Markdown(
+                                    "**Column Split Delimiter Examples:**"
+                                    "\n"
+                                    "- **Tab-separated values:**"
+                                    "\n"
+                                    "   **Delimiter:** \\t"
+                                    "\n"
+                                    "   Example: Value1<tab>Value2<tab>Value3"
+                                    "\n"
+                                    "- **Newline-separated values:**"
+                                    "\n"
+                                    "   **Delimiter:** \\n"
+                                    "\n"
+                                    "   Example: Value1\\nValue2\\nValue3"
+                                    "\n"
+                                    "- **Pipe-separated values:**"
+                                    "\n"
+                                    "   **Delimiter:** |"
+                                    "\n"
+                                    "   Example: Value1|Value2|nValue3"
+                                )
+                            ]
+                        )
+                    )
+                )
+                .addElement(
+                    RadioGroup("Select Split Strategy")
+                    .addOption("Split to columns", "splitColumns")
+                    .addOption("Split to rows", "splitRows")
+                    .bindProperty("split_strategy")
+                )
+                .addElement(
+                    Condition()
+                    .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitColumns"))
+                    .then(
                         StackLayout(height="100%")
                         .addElement(
-                                StackLayout()
-                                            .addElement(
-                                                SchemaColumnsDropdown("Select Column to Split")
-                                                .withSearchEnabled()
-                                                .bindSchema("component.ports.inputs[0].schema")
-                                                .bindProperty("columnNames")
-                                                .showErrorsFor("columnNames")
-                                            )
-                                )
-                                .addElement(
-                                    TextBox("Delimiter").bindPlaceholder("delimiter").bindProperty("delimiter")
-                                )
-                                .addElement(
-                                    AlertBox(
-                                        variant="success",
-                                        _children=[
-                                            Markdown(
-                                                "**Column Split Delimiter Examples:**"
-                                                "\n"
-                                                "- **Tab-separated values:**"
-                                                "\n"
-                                                "   **Delimiter:** \\t"
-                                                "\n"
-                                                "   Example: Value1<tab>Value2<tab>Value3"
-                                                "\n"                                                
-                                                "- **Newline-separated values:**"
-                                                "\n"
-                                                "   **Delimiter:** \\n"
-                                                "\n"
-                                                "   Example: Value1\\nValue2\\nValue3"
-                                                "\n"                                                
-                                                "- **Pipe-separated values:**"
-                                                "\n"
-                                                "   **Delimiter:** |"
-                                                "\n"
-                                                "   Example: Value1|Value2|nValue3"                                                                                             
-                                            )
-                                        ]
-                                    )
-                                )                                
+                            NumberBox("Number of columns", placeholder=1,
+                                      helpText="Number of columns to split the data", requiredMin=1)
+                            .bindProperty("noOfColumns")
+                        )
+                        .addElement(
+                            SelectBox(titleVar="Extra Characters", defaultValue="Leave extra in last column")
+                            .addOption("Leave extra in last column", "leaveExtraCharLastCol")
+                            .bindProperty("leaveExtraCharLastCol")
+                        )
+                        .addElement(
+                            ColumnsLayout(gap="1rem", height="100%")
+                            .addColumn(
+                                TextBox("Column Prefix")
+                                .bindPlaceholder("Enter Generated Column Prefix")
+                                .bindProperty("splitColumnPrefix")
+                            )
+                            .addColumn(
+                                TextBox("Column Suffix")
+                                .bindPlaceholder("Enter Generated Column Suffix")
+                                .bindProperty("splitColumnSuffix")
+                            )
+                        )
                     )
-                    .addElement(
-                            RadioGroup("Select Split Strategy")
-                            .addOption("Split to columns", "splitColumns")
-                            .addOption("Split to rows", "splitRows")
-                            .bindProperty("split_strategy")                      
-                    )
-                    .addElement(
-                        Condition()
-                             .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitColumns"))
-                             .then(
-                                    StackLayout(height="100%")
-                                    .addElement(
-                                        NumberBox("Number of columns", placeholder=1,helpText="Number of columns to split the data", requiredMin=1)
-                                        .bindProperty("noOfColumns")
-                                    )
-                                    .addElement(
-                                        SelectBox(titleVar="Extra Characters",defaultValue="Leave extra in last column")
-                                        .addOption("Leave extra in last column", "leaveExtraCharLastCol")
-                                        .bindProperty("leaveExtraCharLastCol")
-                                    )
-                                    .addElement(
-                                        ColumnsLayout(gap="1rem", height="100%")
-                                        .addColumn(
-                                                TextBox("Column Prefix")
-                                                    .bindPlaceholder("Enter Generated Column Prefix")
-                                                    .bindProperty("splitColumnPrefix")
-                                        )
-                                        .addColumn(
-                                                TextBox("Column Suffix")
-                                                    .bindPlaceholder("Enter Generated Column Suffix")
-                                                    .bindProperty("splitColumnSuffix")
-                                        )                                        
-                                    )                                                                        
-                                )
-                    )
-                    .addElement(
-                        Condition()
-                             .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitRows"))
-                             .then(
-                                ColumnsLayout(gap="1rem", height="100%")
-                                        .addColumn(
-                                                TextBox("Generated Column Name")
-                                                    .bindPlaceholder("Enter Generated Column Name")
-                                                    .bindProperty("splitRowsColumnName")
-                                        )
-                             )                       
-                    )                    
                 )
+                .addElement(
+                    Condition()
+                    .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitRows"))
+                    .then(
+                        ColumnsLayout(gap="1rem", height="100%")
+                        .addColumn(
+                            TextBox("Generated Column Name")
+                            .bindPlaceholder("Enter Generated Column Name")
+                            .bindProperty("splitRowsColumnName")
+                        )
+                    )
+                )
+            )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
@@ -164,36 +167,43 @@ class TextToColumns(MacroSpec):
         if component.properties.split_strategy == "splitColumns":
             if component.properties.noOfColumns < 1:
                 diagnostics.append(
-                    Diagnostic("properties.noOfColumns", "No of columns should be more than or equals to 1", SeverityLevelEnum.Error))
+                    Diagnostic("properties.noOfColumns", "No of columns should be more than or equals to 1",
+                               SeverityLevelEnum.Error))
             if len(component.properties.splitColumnPrefix) == 0:
                 diagnostics.append(
-                    Diagnostic("properties.splitColumnPrefix", "Please provide a prefix for generated column", SeverityLevelEnum.Error))
+                    Diagnostic("properties.splitColumnPrefix", "Please provide a prefix for generated column",
+                               SeverityLevelEnum.Error))
             if len(component.properties.splitColumnSuffix) == 0:
                 diagnostics.append(
-                    Diagnostic("properties.splitColumnSuffix", "Please provide a suffix for generated column", SeverityLevelEnum.Error))
+                    Diagnostic("properties.splitColumnSuffix", "Please provide a suffix for generated column",
+                               SeverityLevelEnum.Error))
         if component.properties.split_strategy == "splitRows":
             if len(component.properties.splitRowsColumnName) == 0:
                 diagnostics.append(
-                    Diagnostic("properties.splitRowsColumnName", "Please provide a generated column name", SeverityLevelEnum.Error))
+                    Diagnostic("properties.splitRowsColumnName", "Please provide a generated column name",
+                               SeverityLevelEnum.Error))
 
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the newState's state and return the new state
-        relation_name = self.get_relation_names(component,context)
-        return (replace(newState, properties=replace(newState.properties,relation_name=relation_name)))
+        relation_name = self.get_relation_names(component, context)
+        return (replace(newState, properties=replace(newState.properties, relation_name=relation_name)))
 
     def apply(self, props: TextToColumnsProperties) -> str:
         # You can now access self.relation_name here
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        
+
         # Get the Single Table Name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
+        # Handle delimiter with special characters
+        escaped_delimiter = re.escape(props.delimiter).replace("\\", "\\\\\\")
 
         arguments = [
             "'" + table_name + "'",
             "'" + props.columnNames + "'",
-            "'" + props.delimiter + "'",
+            "\"" + escaped_delimiter + "\"",
             "'" + props.split_strategy + "'",
             str(props.noOfColumns),
             "'" + props.leaveExtraCharLastCol + "'",
@@ -237,5 +247,5 @@ class TextToColumns(MacroSpec):
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
-        relation_name = self.get_relation_names(component,context)
-        return (replace(component, properties=replace(component.properties,relation_name=relation_name)))
+        relation_name = self.get_relation_names(component, context)
+        return (replace(component, properties=replace(component.properties, relation_name=relation_name)))
