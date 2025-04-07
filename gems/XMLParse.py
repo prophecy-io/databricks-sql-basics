@@ -19,7 +19,7 @@ class XMLParse(MacroSpec):
         # properties for the component with default values
         columnNames: List[str] = field(default_factory=list)
         relation_name: List[str] = field(default_factory=list)
-        columnSuffix: str = "_parsed"
+        columnSuffix: str = "parsed"
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
