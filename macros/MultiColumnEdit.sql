@@ -1,4 +1,17 @@
-{% macro BulkColumnExpressions(relation, columnNames, expressionToBeApplied, prefixSuffixToBeAdded='', changeOutputFieldName=false, isPrefix=true, changeOutputFieldType=false, castOutputTypeName='', copyOriginalColumns=false, remainingColumns=[], prefixSuffixOption = 'prefix / suffix', dataType = 'String') %}
+{% macro MultiColumnEdit(
+    relation,
+    columnNames,
+    expressionToBeApplied,
+    prefixSuffixToBeAdded='',
+    changeOutputFieldName=false,
+    isPrefix=true,
+    changeOutputFieldType=false,
+    castOutputTypeName='',
+    copyOriginalColumns=false,
+    remainingColumns=[],
+    prefixSuffixOption = 'prefix / suffix',
+    dataType = 'String'
+) %}
     {% set column_expressions = [] %}
 
     {% for column in columnNames %}

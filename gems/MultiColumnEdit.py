@@ -1,34 +1,22 @@
-
 from dataclasses import dataclass
-
-
-from collections import defaultdict
-from prophecy.cb.sql.Component import *
-from prophecy.cb.sql.MacroBuilderBase import *
-from prophecy.cb.ui.uispec import *
-from prophecy.cb.server.base.ComponentBuilderBase import *
-from pyspark.sql import *
-from pyspark.sql.functions import *
-
-from prophecy.cb.server.base import WorkflowContext
-from prophecy.cb.server.base.datatypes import SInt, SString
-from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StringType, BinaryType, BooleanType, ByteType, ShortType, IntegerType, LongType, FloatType, DoubleType, TimestampType, DateType, StructField
-from pyspark.sql.types import StructType
 import dataclasses
 import json
 
+from prophecy.cb.sql.Component import *
+from prophecy.cb.sql.MacroBuilderBase import *
+from prophecy.cb.ui.uispec import *
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-class BulkColumnExpressions(MacroSpec):
-    name: str = "BulkColumnExpressions"
+
+class MultiColumnEdit(MacroSpec):
+    name: str = "MultiColumnEdit"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Transform"
+    category: str = "Prepare"
 
 
     @dataclass(frozen=True)
-    class BulkColumnExpressionsProperties(MacroProperties):
+    class MultiColumnEditProperties(MacroProperties):
         # properties for the component with default values
-        relation: str = "in0"
         columnNames: List[str] = field(default_factory=list)
         remainingColumns: List[str] = field(default_factory=list)
         schemaColDropdownSchema: Optional[StructType] = StructType([])
@@ -41,11 +29,29 @@ class BulkColumnExpressions(MacroSpec):
         copyOriginalColumns: bool = False
         expressionToBeApplied: str = ""
         isPrefix: bool = False
-        
+        relation_name: List[str] = field(default_factory=list)
+
+    def get_relation_names(self, component: Component, context: SqlContext):
+        all_upstream_nodes = []
+        for inputPort in component.ports.inputs:
+            upstreamNode = None
+            for connection in context.graph.connections:
+                if connection.targetPort == inputPort.id:
+                    upstreamNodeId = connection.source
+                    upstreamNode = context.graph.nodes.get(upstreamNodeId)
+            all_upstream_nodes.append(upstreamNode)
+
+        relation_name = []
+        for upstream_node in all_upstream_nodes:
+            if upstream_node is None or upstream_node.slug is None:
+                relation_name.append("")
+            else:
+                relation_name.append(upstream_node.slug)
+
+        return relation_name
 
     def dialog(self) -> Dialog:
-        relationTextBox = TextBox("Table name").bindPlaceholder("in0").bindProperty("relation")
-        typeNames = ["String","Binary","Boolean","Byte","Short","Integer","Long","Float","Double", "Date", "Timestamp"]
+        typeNames = ["STRING", "BINARY", "BOOLEAN", "NUMBER", "FLOAT", "DATE", "TIMESTAMP"]
         dataTypeSelectBox = SelectBox("Data Type of the columns to do operations on").addOption("String Type", "String").addOption("Numeric Type", "Numeric").addOption("Date/Timestamp Type", "Date").addOption("All Types", "All").bindProperty("dataType")
         prefixSuffixDropDown = SelectBox("Add Prefix / Suffix").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption")
         sparkDataTypeList = SelectBox("Cast output column as")
@@ -54,10 +60,10 @@ class BulkColumnExpressions(MacroSpec):
         sparkDataTypeList = sparkDataTypeList.bindProperty("castOutputTypeName")
 
 
-        dialog = Dialog("BulkColumnExpressions").addElement(ColumnsLayout(gap="1rem", height="100%") \
+        dialog = Dialog("MultiColumnEdit").addElement(ColumnsLayout(gap="1rem", height="100%") \
         .addColumn(Ports(allowInputAddOrDelete=True), "content") \
-        .addColumn(StackLayout(height="100%").addElement(relationTextBox).addElement(dataTypeSelectBox) \
-        .addElement(SchemaColumnsDropdown("Selected Columns").withMultipleSelection().bindSchema("schemaColDropdownSchema").bindProperty("columnNames")) \
+        .addColumn(StackLayout(height="100%").addElement(dataTypeSelectBox) \
+        .addElement(SchemaColumnsDropdown("Selected Columns").withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty("columnNames")) \
         .addElement(Checkbox("Change output column name").bindProperty("changeOutputFieldName")) \
         .addElement(Condition().ifEqual(PropExpr("component.properties.changeOutputFieldName"), BooleanExpr(True)).then(StackLayout(gap="1rem").addElement(prefixSuffixDropDown).addElement(TextBox("Value").bindPlaceholder("Example: new_").bindProperty("prefixSuffixToBeAdded")).addElement(Checkbox("Copy incoming columns to output").bindProperty("copyOriginalColumns")))) \
         .addElement(Checkbox("Change output column type").bindProperty("changeOutputFieldType")) \
@@ -71,34 +77,40 @@ class BulkColumnExpressions(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         dataTypeMapping = {
-            "String": {"String"},
-            "Numeric": {"Byte", "Short", "Integer", "Long", "Float", "Double"},
-            "Date": {"Date", "Timestamp"},
-            "All": {"String", "Byte", "Short", "Integer", "Long", "Float", "Double", "Date", "Timestamp"}
+            "String": {"VARCHAR", "CHAR", "STRING", "TEXT"},
+            "Numeric": {"NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "FLOAT", "DOUBLE", "REAL"},
+            "Date": {"DATE", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ"},
+            "All": {"VARCHAR", "CHAR", "STRING", "TEXT", "NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "FLOAT", "DOUBLE", "REAL", "DATE", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ"}
         }
+
         # Handle changes in the component's state and return the new state
         if newState.properties.dataType in dataTypeMapping:
             allowedSet = set(dataTypeMapping[newState.properties.dataType])
         else:
             allowedSet = set()
-        schemaString = str(newState.ports.inputs[0].schema).replace("'", '"')
+
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"] if field["dataType"]["type"] in allowedSet]
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"] if field["dataType"]["type"].upper() in allowedSet]
         struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
         prefix = newState.properties.prefixSuffixOption == "Prefix"
+        relation_name = self.get_relation_names(newState, context)
         newProperties = dataclasses.replace(
-            newState.properties, 
+            newState.properties,
             schemaColDropdownSchema = StructType(struct_fields),
-            isPrefix=prefix
+            isPrefix=prefix,
+            relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
 
-    def apply(self, props: BulkColumnExpressionsProperties) -> str:
+    def apply(self, props: MultiColumnEditProperties) -> str:
+        # Get the table name
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         # isPrefix=true, castOutputTypeName='', copyOriginalColumns=false, remainingColumns=[]
         arguments = [
-            "'" + props.relation + "'",
+            "'" + table_name + "'",
             str(props.columnNames),
             "'" + props.expressionToBeApplied + "'",
             "'" + props.prefixSuffixToBeAdded + "'",
@@ -117,8 +129,8 @@ class BulkColumnExpressions(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # Load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        return BulkColumnExpressions.BulkColumnExpressionsProperties(
-            relation=parametersMap.get('relation')[1:-1],
+        return MultiColumnEdit.MultiColumnEditProperties(
+            relation_name=parametersMap.get('relation_name'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
             expressionToBeApplied=parametersMap.get('expressionToBeApplied')[1:-1],
             prefixSuffixToBeAdded=parametersMap.get('prefixSuffixToBeAdded')[1:-1],
@@ -138,7 +150,7 @@ class BulkColumnExpressions(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation", properties.relation),
+                MacroParameter("relation_name", properties.relation_name),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("expressionToBeApplied", properties.expressionToBeApplied),
                 MacroParameter("prefixSuffixToBeAdded", properties.prefixSuffixToBeAdded),
@@ -153,4 +165,10 @@ class BulkColumnExpressions(MacroSpec):
             ],
         )
 
-
+    def updateInputPortSlug(self, component: Component, context: SqlContext):
+        relation_name = self.get_relation_names(component,context)
+        newProperties = dataclasses.replace(
+            component.properties,
+            relation_name = relation_name
+        )
+        return component.bindProperties(newProperties)

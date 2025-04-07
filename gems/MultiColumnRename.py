@@ -12,7 +12,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 class MultiColumnRename(MacroSpec):
     name: str = "MultiColumnRename"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Transform"
+    category: str = "Prepare"
 
 
     @dataclass(frozen=True)
