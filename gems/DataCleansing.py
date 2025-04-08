@@ -154,7 +154,11 @@ class DataCleansing(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context,component)
+        diagnostics = super(DataCleansing, self).validate(context,component)
+        if (component.properties.removeRowNullAllCols == False) and (len(component.properties.columnNames) == 0):
+            diagnostics.append(
+                Diagnostic("component.properties.removeRowNullAllCols", "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
