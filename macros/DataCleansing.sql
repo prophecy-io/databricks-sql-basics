@@ -51,12 +51,13 @@
         {%- for col in schema -%}
             {%- set col_type_map = col_type_map.update({ col.name: col.dataType | lower }) -%}
         {%- endfor -%}
+        {%- set numeric_types = ["bigint", "decimal", "double", "float", "integer", "smallint", "tinyint"] -%}
 
         {{ log(col_type_map, info = True) }}
         {%- for col_name in columnNames -%}
             {%- set col_expr = col_name -%}
 
-            {%- if col_type_map.get(col_name) == "number" -%}
+            {%- if col_type_map.get(col_name) in numeric_types -%}
                 {%- if replaceNullForNumericFields -%}
                     {%- set col_expr = "COALESCE(" ~ col_expr ~ ", " ~ replaceNullNumericWith | string ~ ")" -%}
                 {%- endif -%}
