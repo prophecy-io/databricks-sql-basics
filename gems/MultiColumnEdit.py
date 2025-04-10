@@ -18,17 +18,11 @@ class MultiColumnEdit(MacroSpec):
     class MultiColumnEditProperties(MacroProperties):
         # properties for the component with default values
         columnNames: List[str] = field(default_factory=list)
-        remainingColumns: List[str] = field(default_factory=list)
-        schemaColDropdownSchema: Optional[StructType] = StructType([])
-        dataType: str = ""
-        prefixSuffixOption: str = "Prefix / Suffix to be added"
+        schema: Optional[StructType] = StructType([])
+        prefixSuffixOption: str = "Prefix"
         prefixSuffixToBeAdded: str = ""
-        castOutputTypeName: str = "Select output type"
         changeOutputFieldName: bool = False
-        changeOutputFieldType: bool = False
-        copyOriginalColumns: bool = False
         expressionToBeApplied: str = ""
-        isPrefix: bool = False
         relation_name: List[str] = field(default_factory=list)
 
     def get_relation_names(self, component: Component, context: SqlContext):
@@ -51,54 +45,88 @@ class MultiColumnEdit(MacroSpec):
         return relation_name
 
     def dialog(self) -> Dialog:
-        typeNames = ["STRING", "BINARY", "BOOLEAN", "NUMBER", "FLOAT", "DATE", "TIMESTAMP"]
-        dataTypeSelectBox = SelectBox("Data Type of the columns to do operations on").addOption("String Type", "String").addOption("Numeric Type", "Numeric").addOption("Date/Timestamp Type", "Date").addOption("All Types", "All").bindProperty("dataType")
-        prefixSuffixDropDown = SelectBox("Add Prefix / Suffix").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption")
-        sparkDataTypeList = SelectBox("Cast output column as")
-        for typeName in typeNames:
-            sparkDataTypeList = sparkDataTypeList.addOption(typeName, typeName)
-        sparkDataTypeList = sparkDataTypeList.bindProperty("castOutputTypeName")
-
-
-        dialog = Dialog("MultiColumnEdit").addElement(ColumnsLayout(gap="1rem", height="100%") \
-        .addColumn(Ports(allowInputAddOrDelete=True), "content") \
-        .addColumn(StackLayout(height="100%").addElement(dataTypeSelectBox) \
-        .addElement(SchemaColumnsDropdown("Selected Columns").withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty("columnNames")) \
-        .addElement(Checkbox("Change output column name").bindProperty("changeOutputFieldName")) \
-        .addElement(Condition().ifEqual(PropExpr("component.properties.changeOutputFieldName"), BooleanExpr(True)).then(StackLayout(gap="1rem").addElement(prefixSuffixDropDown).addElement(TextBox("Value").bindPlaceholder("Example: new_").bindProperty("prefixSuffixToBeAdded")).addElement(Checkbox("Copy incoming columns to output").bindProperty("copyOriginalColumns")))) \
-        .addElement(Checkbox("Change output column type").bindProperty("changeOutputFieldType")) \
-        .addElement(Condition().ifEqual(PropExpr("component.properties.changeOutputFieldType"), BooleanExpr(True)).then(ColumnsLayout().addColumn(sparkDataTypeList))) \
-        .addElement(ExpressionBox("Output Expression").bindProperty("expressionToBeApplied").bindPlaceholder("Write spark sql expression considering `column_value` as column value and `column_name` as column name string literal. Example:\nFor column value: column_value * 100\nFor column name: upper(column_name)").bindLanguage("plaintext"))))
+        dialog = Dialog("MultiColumnEdit")\
+        .addElement(
+            ColumnsLayout(gap="1rem", height="100%")
+            .addColumn(Ports(allowInputAddOrDelete=True), "content")
+            .addColumn(
+                StackLayout(height="100%")
+                .addElement(
+                    StepContainer()
+                        .addElement(
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(
+                                            SchemaColumnsDropdown("Selected columns to edit")
+                                            .withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty("columnNames")
+                                        )
+                                        .addElement(
+                                            ColumnsLayout(gap="1rem", height="100%")
+                                            .addColumn(
+                                                Checkbox("").bindProperty("changeOutputFieldName"), "0.05fr"
+                                            )
+                                            .addColumn(
+                                                NativeText("Maintain the original columns and add "), "0.75fr"
+                                            )
+                                            .addColumn(
+                                                SelectBox("").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption"), "0.5fr"
+                                            )
+                                            .addColumn(
+                                                TextBox("").bindPlaceholder("Example: new_").bindProperty("prefixSuffixToBeAdded"), "0.5fr"
+                                            )
+                                            .addColumn(
+                                                NativeText("to the new columns"), "3fr"
+                                            )
+                                        )
+                                    )
+                        )
+                )
+                .addElement(
+                    StepContainer()
+                        .addElement(
+                            Step()
+                                .addElement(
+                                    ExpressionBox("Output Expression").bindProperty("expressionToBeApplied").bindPlaceholder("Write spark sql expression considering `column_value` as column value and `column_name` as column name string literal. Example:\nFor column value: column_value * 100\nFor column name: upper(column_name)").bindLanguage("plaintext")
+                                )
+                        )
+                )
+            )
+        )
         return dialog
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context,component)
+        diagnostics = super(MultiColumnEdit, self).validate(context,component)
+        props = component.properties
+
+        if len(component.properties.columnNames) == 0:
+            diagnostics.append(
+                Diagnostic("component.properties.columnNames", "Please select a column for the operation", SeverityLevelEnum.Error))
+
+        if len(component.properties.expressionToBeApplied) == 0:
+            diagnostics.append(
+                Diagnostic("component.properties.expressionToBeApplied", "Please give an expression to apply", SeverityLevelEnum.Error))
+
+        if component.properties.changeOutputFieldName:
+            if len(component.properties.prefixSuffixOption) > 0:
+                if len(component.properties.prefixSuffixToBeAdded) == 0:
+                    diagnostics.append(
+                        Diagnostic("component.properties.prefixSuffixToBeAdded", "Please add prefix or suffix", SeverityLevelEnum.Error))
+
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
-        dataTypeMapping = {
-            "String": {"VARCHAR", "CHAR", "STRING", "TEXT"},
-            "Numeric": {"NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "FLOAT", "DOUBLE", "REAL"},
-            "Date": {"DATE", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ"},
-            "All": {"VARCHAR", "CHAR", "STRING", "TEXT", "NUMBER", "DECIMAL", "NUMERIC", "INT", "INTEGER", "BIGINT", "SMALLINT", "FLOAT", "DOUBLE", "REAL", "DATE", "TIMESTAMP", "TIMESTAMP_LTZ", "TIMESTAMP_NTZ", "TIMESTAMP_TZ"}
-        }
-
         # Handle changes in the component's state and return the new state
-        if newState.properties.dataType in dataTypeMapping:
-            allowedSet = set(dataTypeMapping[newState.properties.dataType])
-        else:
-            allowedSet = set()
+        portSchema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
+        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
+        relation_name = self.get_relation_names(newState,context)
 
-        schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"] if field["dataType"]["type"].upper() in allowedSet]
-        struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
-        prefix = newState.properties.prefixSuffixOption == "Prefix"
-        relation_name = self.get_relation_names(newState, context)
         newProperties = dataclasses.replace(
             newState.properties,
-            schemaColDropdownSchema = StructType(struct_fields),
-            isPrefix=prefix,
-            relation_name=relation_name
+            schema = StructType(struct_fields),
+            relation_name = relation_name
         )
         return newState.bindProperties(newProperties)
 
@@ -106,22 +134,21 @@ class MultiColumnEdit(MacroSpec):
         # Get the table name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
+        # Get existing column names
+        allColumnNames = [field.name for field in props.schema.fields]
+
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        # isPrefix=true, castOutputTypeName='', copyOriginalColumns=false, remainingColumns=[]
+
+
         arguments = [
             "'" + table_name + "'",
+            str(allColumnNames),
             str(props.columnNames),
             "'" + props.expressionToBeApplied + "'",
-            "'" + props.prefixSuffixToBeAdded + "'",
             str(props.changeOutputFieldName).lower(),
-            str(props.isPrefix).lower(),
-            str(props.changeOutputFieldType).lower(),
-            "'" + props.castOutputTypeName + "'",
-            str(props.copyOriginalColumns).lower(),
-            str(props.remainingColumns),
             "'" + props.prefixSuffixOption + "'",
-            "'" + props.dataType + "'"
+            "'" + props.prefixSuffixToBeAdded + "'"
         ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
@@ -132,16 +159,10 @@ class MultiColumnEdit(MacroSpec):
         return MultiColumnEdit.MultiColumnEditProperties(
             relation_name=parametersMap.get('relation_name'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
-            expressionToBeApplied=parametersMap.get('expressionToBeApplied')[1:-1],
-            prefixSuffixToBeAdded=parametersMap.get('prefixSuffixToBeAdded')[1:-1],
+            expressionToBeApplied=parametersMap.get('expressionToBeApplied'),
             changeOutputFieldName=parametersMap.get('changeOutputFieldName').lower() == "true",
-            isPrefix=parametersMap.get('isPrefix').lower() == "true",
-            changeOutputFieldType=parametersMap.get('changeOutputFieldType').lower() == "true",
-            castOutputTypeName=parametersMap.get('castOutputTypeName')[1:-1],
-            copyOriginalColumns=parametersMap.get('copyOriginalColumns').lower() == "true",
-            remainingColumns=json.loads(parametersMap.get('remainingColumns').replace("'", '"')),
-            prefixSuffixOption=parametersMap.get('prefixSuffixOption')[1:-1],
-            dataType=parametersMap.get('dataType')[1:-1],
+            prefixSuffixOption=parametersMap.get('prefixSuffixOption'),
+            prefixSuffixToBeAdded=parametersMap.get('prefixSuffixToBeAdded')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -153,22 +174,23 @@ class MultiColumnEdit(MacroSpec):
                 MacroParameter("relation_name", properties.relation_name),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("expressionToBeApplied", properties.expressionToBeApplied),
-                MacroParameter("prefixSuffixToBeAdded", properties.prefixSuffixToBeAdded),
-                MacroParameter("changeOutputFieldType", properties.changeOutputFieldType),
                 MacroParameter("changeOutputFieldName", str(properties.changeOutputFieldName).lower()),
-                MacroParameter("isPrefix", str(properties.isPrefix).lower()),
-                MacroParameter("castOutputTypeName", properties.castOutputTypeName),
-                MacroParameter("copyOriginalColumns", str(properties.copyOriginalColumns).lower()),
-                MacroParameter("remainingColumns", json.dumps(properties.remainingColumns)),
                 MacroParameter("prefixSuffixOption", properties.prefixSuffixOption),
-                MacroParameter("dataType", properties.dataType)
+                MacroParameter("prefixSuffixToBeAdded", properties.prefixSuffixToBeAdded)
             ],
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
+        # Handle changes in the component's state and return the new state
+        portSchema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
+        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
         relation_name = self.get_relation_names(component,context)
+
         newProperties = dataclasses.replace(
             component.properties,
+            schema = StructType(struct_fields),
             relation_name = relation_name
         )
         return component.bindProperties(newProperties)
+

@@ -1,48 +1,40 @@
-{% macro MultiColumnEdit(
+{%- macro MultiColumnEdit(
     relation,
+    allColumnNames,
     columnNames,
     expressionToBeApplied,
-    prefixSuffixToBeAdded='',
     changeOutputFieldName=false,
-    isPrefix=true,
-    changeOutputFieldType=false,
-    castOutputTypeName='',
-    copyOriginalColumns=false,
-    remainingColumns=[],
     prefixSuffixOption = 'prefix / suffix',
-    dataType = 'String'
-) %}
-    {% set column_expressions = [] %}
+    prefixSuffixToBeAdded=''
+) -%}
 
-    {% for column in columnNames %}
-        {% if changeOutputFieldName %}
-            {% if prefixSuffixOption | lower == "prefix" %}
-                {% set alias = prefixSuffixToBeAdded ~ column %}
-            {% else %}
-                {% set alias = column ~ prefixSuffixToBeAdded %}
-            {% endif %}
-        {% else %}
-            {% set alias = column %}
-        {% endif %}
+    {%- set select_expressions = [] -%}
 
-        {% set column_expr = expressionToBeApplied | replace('column_value', '`' ~ column ~ '`') | replace('column_name', "'" ~ column ~ "'") %}
-        
-        {% if changeOutputFieldType %}
-            {% set column_expr = column_expr ~ '::' ~ castOutputTypeName %}
-        {% endif %}
-        
-        {% do column_expressions.append(column_expr ~ ' as ' ~ '`' ~ alias ~ '`') %}
-    {% endfor %}
+    {%- if changeOutputFieldName -%}
+        {%- for col in allColumnNames -%}
+            {%- do select_expressions.append(col) -%}
+        {%- endfor -%}
+        {%- for col in columnNames -%}
+            {%- if prefixSuffixOption | lower == "prefix" -%}
+                {%- set alias = prefixSuffixToBeAdded ~ col -%}
+            {%- else -%}
+                {%- set alias = col ~ prefixSuffixToBeAdded -%}
+            {%- endif -%}
+            {%- set expr = expressionToBeApplied | replace('column_value', col) | replace('column_name', col) -%}
+            {%- do select_expressions.append(expr ~ ' as ' ~ alias) -%}
+        {%- endfor -%}
+    {%- else -%}
+        {%- for col in allColumnNames -%}
+            {%- if col in columnNames -%}
+                {%- set expr = expressionToBeApplied | replace('column_value', col) | replace('column_name', col) -%}
+                {%- do select_expressions.append(expr ~ ' as ' ~ col) -%}
+            {%- else -%}
+                {%- do select_expressions.append(col) -%}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
 
-    {% set original_columns = [] %}
-    {% if copyOriginalColumns %}
-        {% for column in columnNames %}
-            {% do original_columns.append('`' ~ column ~ '`') %}
-        {% endfor %}
-    {% endif %}
-    {% set all_columns = column_expressions + remainingColumns + original_columns %}
-
-    select 
-        {{ all_columns | join(', ') }}
+    select
+        {{ select_expressions | join(',\n        ') }}
     from {{ relation }}
-{% endmacro %}
+{%- endmacro -%}
