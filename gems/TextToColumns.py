@@ -1,13 +1,10 @@
 from dataclasses import dataclass
-import dataclasses
-import json
 import re
 
 from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 
 class TextToColumns(MacroSpec):
@@ -28,8 +25,6 @@ class TextToColumns(MacroSpec):
         splitColumnPrefix: str = "root"
         splitColumnSuffix: str = "generated"
         splitRowsColumnName: str = "generated_column"
-        # for schema column dropdown
-        schemaColDropdownSchema: Optional[StructType] = StructType([])
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []

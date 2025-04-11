@@ -134,6 +134,32 @@ class MultiColumnRename(MacroSpec):
                         )
                     )
                 )
+                .addElement(
+                    AlertBox(
+                        variant="success",
+                        _children=[
+                            Markdown(
+                                "**In Advanced rename, use column_name to refer to the column’s name** \n\n"
+                                "* **column_name** : Use **column_name** as a placeholder in your expression—it will automatically apply the logic to each selected column in the table. \n\n"
+                                "Let's understand from a simple example \n\n"
+                                "**Input:**\n\n"
+                                "| id | country | first_name | age |\n"
+                                "|----|---------|------------|------|\n"
+                                "| 1  | usa     | John       | 50   |\n\n"
+
+
+                                "➤ **Example of column_name**\n"
+                                "✔ Selected columns to rename are **country, first_name**\n"
+                                "✔ Expression: **concat(column_name,'_new')** \n\n"
+
+                                "**Output:**\n\n"
+                                "| id | country_new | first_name_new | age |\n"
+                                "|----|-------------|----------------|------|\n"
+                                "| 1  | usa         | John           | 50   |\n\n"
+                            )
+                        ]
+                    )
+                )
             )
         )
         return dialog
