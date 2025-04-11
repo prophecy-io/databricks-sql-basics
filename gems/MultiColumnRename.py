@@ -6,7 +6,6 @@ from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 
 class MultiColumnRename(MacroSpec):
@@ -18,7 +17,7 @@ class MultiColumnRename(MacroSpec):
     @dataclass(frozen=True)
     class MultiColumnRenameProperties(MacroProperties):
         # properties for the component with default values
-        schema: Optional[StructType] = StructType([])
+        schema: str = ''
         columnNames: List[str] = field(default_factory=list)
         renameMethod: str = ""
         editOperation: str = "Add"
@@ -172,15 +171,13 @@ class MultiColumnRename(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        portSchema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in
-                        portSchema["fields"]]
-        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
+        schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
             newState.properties,
-            schema=StructType(struct_fields),
+            schema=json.dumps(fields_array),
             relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
@@ -190,15 +187,15 @@ class MultiColumnRename(MacroSpec):
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
         # Get existing column names
-        column_names = [field.name for field in props.schema.fields]
+        allColumnNames = [field["name"] for field in json.loads(props.schema)]
 
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
             "'" + table_name + "'",
-            str(column_names),
             str(props.columnNames),
             "'" + str(props.renameMethod) + "'",
+            str(allColumnNames),
             "'" + str(props.editType) + "'",
             "'" + str(props.editWith) + "'",
             '"' + str(props.customExpression) + '"'
@@ -212,6 +209,7 @@ class MultiColumnRename(MacroSpec):
         parametersMap = self.convertToParameterMap(properties.parameters)
         return MultiColumnRename.MultiColumnRenameProperties(
             relation_name=parametersMap.get('relation_name'),
+            schema=parametersMap.get('schema'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
             renameMethod=parametersMap.get('renameMethod'),
             editOperation=parametersMap.get('editOperation'),
@@ -227,6 +225,7 @@ class MultiColumnRename(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("renameMethod", properties.renameMethod),
                 MacroParameter("editOperation", properties.editOperation),
@@ -237,15 +236,14 @@ class MultiColumnRename(MacroSpec):
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
-        portSchema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in
-                        portSchema["fields"]]
-        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
+        # Handle changes in the component's state and return the new state
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(component, context)
 
         newProperties = dataclasses.replace(
             component.properties,
-            schema=StructType(struct_fields),
+            schema=json.dumps(fields_array),
             relation_name=relation_name
         )
         return component.bindProperties(newProperties)

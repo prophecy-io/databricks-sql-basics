@@ -254,8 +254,8 @@ class DataCleansing(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", properties.relation_name),
-                MacroParameter("schema", properties.schema),
+                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("modifyCase", properties.modifyCase),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("replaceNullTextFields", str(properties.replaceNullTextFields).lower()),
