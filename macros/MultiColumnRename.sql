@@ -3,24 +3,19 @@
     schema,
     columnNames,
     renameMethod,
-    editOperation = '',
     editType = '',
     editWith = '',
-    customExpression='') 
+    customExpression='')
 %}
     {%- set renamed_columns = [] -%}
-
     {%- for column in columnNames -%}
         {%- set renamed_column = "" -%}
         {%- if renameMethod == 'editPrefixSuffix' -%}
-            {%- if editOperation == 'Add' -%}
                 {%- if editType == 'Prefix' -%}
                     {%- set renamed_column = column ~ " AS " ~ editWith ~ column -%}
                 {%- else -%}
                     {%- set renamed_column = column ~ " AS " ~ column ~ editWith -%}
                 {%- endif -%}
-            {%- endif -%}
-
         {%- elif renameMethod == 'advancedRename' -%}
                 {%- set custom_expr_result = DatabricksSqlBasics.evaluate_expression(customExpression | replace('column_name',  "\'" ~ column ~ "\'"),column) -%}
                 {%- set custom_expr_result_trimmed = custom_expr_result | trim -%}

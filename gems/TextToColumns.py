@@ -14,6 +14,7 @@ class TextToColumns(MacroSpec):
     name: str = "TextToColumns"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Parse"
+    minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
     class TextToColumnsProperties(MacroProperties):
@@ -53,7 +54,7 @@ class TextToColumns(MacroSpec):
         return Dialog("Macro").addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(
-                Ports(allowInputAddOrDelete=True),
+                Ports(),
                 "content"
             )
             .addColumn(
@@ -71,84 +72,111 @@ class TextToColumns(MacroSpec):
                         )
                     )
                     .addElement(
-                        TextBox("Delimiter").bindPlaceholder("delimiter").bindProperty("delimiter")
+                        StepContainer()
+                            .addElement(
+                                Step()
+                                    .addElement(
+                                        StackLayout(height="100%")
+                                            .addElement(TitleElement("Delimiter"))
+                                            .addElement(
+                                                TextBox("").bindPlaceholder("delimiter").bindProperty("delimiter")
+                                            )
+                                            .addElement(
+                                                AlertBox(
+                                                    variant="success",
+                                                    _children=[
+                                                        Markdown(
+                                                            "**Column Split Delimiter Examples:**"
+                                                            "\n"
+                                                            "- **Tab-separated values:**"
+                                                            "\n"
+                                                            "   **Delimiter:** \\t"
+                                                            "\n"
+                                                            "   Example: Value1<tab>Value2<tab>Value3"
+                                                            "\n"
+                                                            "- **Newline-separated values:**"
+                                                            "\n"
+                                                            "   **Delimiter:** \\n"
+                                                            "\n"
+                                                            "   Example: Value1\\nValue2\\nValue3"
+                                                            "\n"
+                                                            "- **Pipe-separated values:**"
+                                                            "\n"
+                                                            "   **Delimiter:** |"
+                                                            "\n"
+                                                            "   Example: Value1|Value2|nValue3"
+                                                        )
+                                                    ]
+                                                )
+                                            )
+                                    )
+                            )
                     )
-                    .addElement(
-                        AlertBox(
-                            variant="success",
-                            _children=[
-                                Markdown(
-                                    "**Column Split Delimiter Examples:**"
-                                    "\n"
-                                    "- **Tab-separated values:**"
-                                    "\n"
-                                    "   **Delimiter:** \\t"
-                                    "\n"
-                                    "   Example: Value1<tab>Value2<tab>Value3"
-                                    "\n"
-                                    "- **Newline-separated values:**"
-                                    "\n"
-                                    "   **Delimiter:** \\n"
-                                    "\n"
-                                    "   Example: Value1\\nValue2\\nValue3"
-                                    "\n"
-                                    "- **Pipe-separated values:**"
-                                    "\n"
-                                    "   **Delimiter:** |"
-                                    "\n"
-                                    "   Example: Value1|Value2|nValue3"
+                )
+                .addElement(
+                    StepContainer()
+                        .addElement(
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(
+                                            RadioGroup("Select Split Strategy")
+                                            .addOption("Split to columns", "splitColumns")
+                                            .addOption("Split to rows", "splitRows")
+                                            .bindProperty("split_strategy")
+                                        )
+                                        .addElement(
+                                            Condition()
+                                            .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitColumns"))
+                                            .then(
+                                                StackLayout(height="100%")
+                                                .addElement(
+                                                    ColumnsLayout(gap="1rem", height="100%")
+                                                    .addColumn(
+                                                            NumberBox("Number of columns", placeholder=1,requiredMin=1)
+                                                            .bindProperty("noOfColumns")
+                                                    )
+                                                    .addColumn()
+                                                    .addColumn()
+                                                    .addColumn()
+                                                    .addColumn()
+                                                )
+                                                .addElement(
+                                                    ColumnsLayout(gap="1rem", height="100%")
+                                                    .addColumn(
+                                                        SelectBox(titleVar="Extra Characters", defaultValue="Leave extra in last column")
+                                                        .addOption("Leave extra in last column", "leaveExtraCharLastCol")
+                                                        .bindProperty("leaveExtraCharLastCol")
+                                                    )
+                                                    .addColumn(
+                                                        TextBox("Column Prefix")
+                                                        .bindPlaceholder("Enter Generated Column Prefix")
+                                                        .bindProperty("splitColumnPrefix")
+                                                    )
+                                                    .addColumn(
+                                                        TextBox("Column Suffix")
+                                                        .bindPlaceholder("Enter Generated Column Suffix")
+                                                        .bindProperty("splitColumnSuffix")
+                                                    )
+                                                )
+                                            )
+                                        )
+                                        .addElement(
+                                            Condition()
+                                            .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitRows"))
+                                            .then(
+                                                ColumnsLayout(gap="1rem", height="100%")
+                                                .addColumn(
+                                                    TextBox("Generated Column Name")
+                                                    .bindPlaceholder("Enter Generated Column Name")
+                                                    .bindProperty("splitRowsColumnName")
+                                                )
+                                                .addColumn()
+                                                .addColumn()
+                                            )
+                                        )
                                 )
-                            ]
                         )
-                    )
-                )
-                .addElement(
-                    RadioGroup("Select Split Strategy")
-                    .addOption("Split to columns", "splitColumns")
-                    .addOption("Split to rows", "splitRows")
-                    .bindProperty("split_strategy")
-                )
-                .addElement(
-                    Condition()
-                    .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitColumns"))
-                    .then(
-                        StackLayout(height="100%")
-                        .addElement(
-                            NumberBox("Number of columns", placeholder=1,
-                                      helpText="Number of columns to split the data", requiredMin=1)
-                            .bindProperty("noOfColumns")
-                        )
-                        .addElement(
-                            SelectBox(titleVar="Extra Characters", defaultValue="Leave extra in last column")
-                            .addOption("Leave extra in last column", "leaveExtraCharLastCol")
-                            .bindProperty("leaveExtraCharLastCol")
-                        )
-                        .addElement(
-                            ColumnsLayout(gap="1rem", height="100%")
-                            .addColumn(
-                                TextBox("Column Prefix")
-                                .bindPlaceholder("Enter Generated Column Prefix")
-                                .bindProperty("splitColumnPrefix")
-                            )
-                            .addColumn(
-                                TextBox("Column Suffix")
-                                .bindPlaceholder("Enter Generated Column Suffix")
-                                .bindProperty("splitColumnSuffix")
-                            )
-                        )
-                    )
-                )
-                .addElement(
-                    Condition()
-                    .ifEqual(PropExpr("component.properties.split_strategy"), StringExpr("splitRows"))
-                    .then(
-                        ColumnsLayout(gap="1rem", height="100%")
-                        .addColumn(
-                            TextBox("Generated Column Name")
-                            .bindPlaceholder("Enter Generated Column Name")
-                            .bindProperty("splitRowsColumnName")
-                        )
-                    )
                 )
             )
         )
@@ -234,7 +262,7 @@ class TextToColumns(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", properties.relation_name),
+                MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("columnNames", properties.columnNames),
                 MacroParameter("delimiter", properties.delimiter),
                 MacroParameter("split_strategy", properties.split_strategy),

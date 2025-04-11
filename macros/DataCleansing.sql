@@ -153,6 +153,10 @@
     {%- endif -%}
 
     {%- set final_query = cleansed_cte ~ "\n" ~ final_select -%}
-    {{ return(final_query) }}
+    {%- if columnNames | length > 0 and expressionToBeApplied | length == 0 -%}
+        select 1
+    {%- else -%}
+        {{ return(final_query) }}
+    {%- endif -%}
     
 {%- endmacro -%}

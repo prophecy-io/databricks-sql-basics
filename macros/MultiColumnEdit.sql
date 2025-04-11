@@ -1,8 +1,8 @@
 {%- macro MultiColumnEdit(
     relation,
-    allColumnNames,
-    columnNames,
     expressionToBeApplied,
+    allColumnNames=[],
+    columnNames=[],
     changeOutputFieldName=false,
     prefixSuffixOption = 'prefix / suffix',
     prefixSuffixToBeAdded=''
@@ -34,7 +34,9 @@
         {%- endfor -%}
     {%- endif -%}
 
-    select
-        {{ select_expressions | join(',\n        ') }}
-    from {{ relation }}
+    {%- if columnNames | length > 0 and expressionToBeApplied | length == 0 -%}
+        select 1
+    {%- else -%}
+        select {{ select_expressions | join(',\n        ') }} from {{ relation }}
+    {%- endif -%}
 {%- endmacro -%}
