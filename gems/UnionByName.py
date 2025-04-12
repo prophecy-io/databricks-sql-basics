@@ -6,15 +6,15 @@ from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
-class TextToColumns(MacroSpec):
+class UnionByName(MacroSpec):
     name: str = "UnionByName"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Join/Split"
+    minNumOfInputPorts: int = 2
 
     @dataclass(frozen=True)
-    class TextToColumnsProperties(MacroProperties):
+    class UnionByNameProperties(MacroProperties):
         # properties for the component with default values
         relation_name: List[str] = field(default_factory=list) 
         firstSchema: str = ''
@@ -72,7 +72,7 @@ class TextToColumns(MacroSpec):
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
-        diagnostics = super(TextToColumns, self).validate(context, component)
+        diagnostics = super(UnionByName, self).validate(context, component)
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
@@ -92,7 +92,7 @@ class TextToColumns(MacroSpec):
         )
         return newState.bindProperties(newProperties)        
 
-    def apply(self, props: TextToColumnsProperties) -> str:
+    def apply(self, props: UnionByNameProperties) -> str:
         # You can now access self.relation_name here
         resolved_macro_name = f"{self.projectName}.{self.name}"
         
@@ -111,7 +111,7 @@ class TextToColumns(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
         print(f"The name of the parametersMap is {parametersMap}")
-        return TextToColumns.TextToColumnsProperties(
+        return UnionByName.UnionByNameProperties(
             relation_name=parametersMap.get('relation_name'),
             firstSchema=parametersMap.get('firstSchema'),
             secondSchema=parametersMap.get('secondSchema'),
@@ -123,7 +123,7 @@ class TextToColumns(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", properties.relation_name),
+                MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("firstSchema", properties.firstSchema),
                 MacroParameter("secondSchema", properties.secondSchema),
                 MacroParameter("missingColumnOps", properties.missingColumnOps)

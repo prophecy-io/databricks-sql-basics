@@ -2,15 +2,13 @@ import dataclasses
 import json
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
-
 
 
 class DataCleansing(MacroSpec):
     name: str = "DataCleansing"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Prepare"
-
+    minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
     class DataCleansingProperties(MacroProperties):
@@ -20,7 +18,7 @@ class DataCleansing(MacroSpec):
 
         # null check operations
         removeRowNullAllCols: bool = False
-        
+
         # clean checks
         columnNames: List[str] = field(default_factory=list)
         replaceNullTextFields: bool = False
@@ -35,7 +33,7 @@ class DataCleansing(MacroSpec):
         cleanNumbers: bool = False
         modifyCase: str = "Keep original"
 
-    def get_relation_names(self,component: Component, context: SqlContext):
+    def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
             upstreamNode = None
@@ -44,47 +42,48 @@ class DataCleansing(MacroSpec):
                     upstreamNodeId = connection.source
                     upstreamNode = context.graph.nodes.get(upstreamNodeId)
             all_upstream_nodes.append(upstreamNode)
-        
+
         relation_name = []
         for upstream_node in all_upstream_nodes:
             if upstream_node is None or upstream_node.slug is None:
                 relation_name.append("")
             else:
                 relation_name.append(upstream_node.slug)
-        
+
         return relation_name
 
     def dialog(self) -> Dialog:
-        horizontalDivider = HorizontalDivider()
         nullOpCheckBox = (ColumnsLayout(gap="1rem", height="100%")
-            .addColumn(StackLayout(height="100%")
-                        .addElement(Checkbox("Remove rows with null in every column").bindProperty("removeRowNullAllCols"))
-            )
-        )
+                          .addColumn(StackLayout(height="100%")
+                                     .addElement(
+            Checkbox("Remove rows with null in every column").bindProperty("removeRowNullAllCols"))
+                                     )
+                          )
 
-        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty("columnNames"))
+        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema(
+            "component.ports.inputs[0].schema").bindProperty("columnNames"))
 
         options = (ColumnsLayout(gap="1rem", height="100%")
-                    .addColumn(StackLayout(height="100%")
-                        .addElement(Checkbox("Leading and trailing whitespaces").bindProperty("trimWhiteSpace"))
-                        .addElement(Checkbox("Tabs, line breaks and duplicate whitespaces").bindProperty(
-                "removeTabsLineBreaksAndDuplicateWhitespace"))
-                        .addElement(Checkbox("All whitespaces").bindProperty("allWhiteSpace"))
-                        .addElement(Checkbox("Letters").bindProperty("cleanLetters"))
-                        .addElement(Checkbox("Numbers").bindProperty("cleanNumbers"))
-                        .addElement(Checkbox("Punctuations").bindProperty("cleanPunctuations"))
-                        .addElement(NativeText("Modify case"))
-                        .addElement(SelectBox("")
-                           .addOption("Keep original", "keepOriginal")
-                           .addOption("lowercase", "makeLowercase")
-                           .addOption("UPPERCASE", "makeUppercase")
-                           .addOption("Title Case","makeTitlecase")
-                           .bindProperty("modifyCase")
-                        )
-                    )
-            )
+                   .addColumn(StackLayout(height="100%")
+                              .addElement(Checkbox("Leading and trailing whitespaces").bindProperty("trimWhiteSpace"))
+                              .addElement(Checkbox("Tabs, line breaks and duplicate whitespaces").bindProperty(
+            "removeTabsLineBreaksAndDuplicateWhitespace"))
+                              .addElement(Checkbox("All whitespaces").bindProperty("allWhiteSpace"))
+                              .addElement(Checkbox("Letters").bindProperty("cleanLetters"))
+                              .addElement(Checkbox("Numbers").bindProperty("cleanNumbers"))
+                              .addElement(Checkbox("Punctuations").bindProperty("cleanPunctuations"))
+                              .addElement(NativeText("Modify case"))
+                              .addElement(SelectBox("")
+                                          .addOption("Keep original", "keepOriginal")
+                                          .addOption("lowercase", "makeLowercase")
+                                          .addOption("UPPERCASE", "makeUppercase")
+                                          .addOption("Title Case", "makeTitlecase")
+                                          .bindProperty("modifyCase")
+                                          )
+                              )
+                   )
 
-        #TBD: Need to Remove
+        # TBD: Need to Remove
         options_to_remove = (StackLayout(gap="2em")
         .addElement(NativeText("Remove unwanted characters"))
         .addElement(
@@ -100,77 +99,101 @@ class DataCleansing(MacroSpec):
             .addColumn(Checkbox("Remove punctuations").bindProperty("cleanPunctuations"), "2fr")
             .addColumn(Checkbox("Remove numbers").bindProperty("cleanNumbers"), "1fr")
         ))
-        
+
         return Dialog("DataCleansing") \
             .addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(
-                Ports(allowInputAddOrDelete=True),
+                Ports(),
                 "content"
             )
             .addColumn(
                 StackLayout()
-                .addElement(TitleElement("Remove nulls from entire dataset"))
-                .addElement(nullOpCheckBox)
-                .addElement(horizontalDivider)
-                .addElement(TitleElement("Select columns to clean"))
-                .addElement(selectCol)
-                .addElement(horizontalDivider)
-                .addElement(TitleElement("Clean selected columns"))
-                .addElement(NativeText("Replace null values in column"))
                 .addElement(
-                    Checkbox("For string columns").bindProperty("replaceNullTextFields")
-                )
-                .addElement(
-                    Condition()
-                    .ifEqual(
-                        PropExpr("component.properties.replaceNullTextFields"),
-                        BooleanExpr(True),
-                    )
-                    .then(
-                        TextBox("Value to replace String/Text field", placeholder="NA")
-                        .bindProperty("replaceNullTextWith"),
+                    StepContainer()
+                    .addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%")
+                            .addElement(TitleElement("Remove nulls from entire dataset"))
+                            .addElement(nullOpCheckBox)
+                        )
                     )
                 )
                 .addElement(
-                    Checkbox("For numeric columns").bindProperty("replaceNullForNumericFields")
+                    StepContainer()
+                        .addElement(
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                    .addElement(TitleElement("Select columns to clean"))
+                                    .addElement(selectCol)
+                                )
+                        )
                 )
                 .addElement(
-                    Condition()
-                    .ifEqual(
-                        PropExpr("component.properties.replaceNullForNumericFields"),
-                        BooleanExpr(True),
-                    )
-                    .then(
-                        NumberBox("Value to replace Numeric field", placeholder="0")
-                        .bindProperty("replaceNullNumericWith"),
+                    StepContainer()
+                    .addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%")
+                            .addElement(TitleElement("Clean selected columns"))
+                            .addElement(NativeText("Replace null values in column"))
+                            .addElement(
+                                Checkbox("For string columns").bindProperty("replaceNullTextFields")
+                            )
+                            .addElement(
+                                Condition()
+                                .ifEqual(
+                                    PropExpr("component.properties.replaceNullTextFields"),
+                                    BooleanExpr(True),
+                                )
+                                .then(
+                                    TextBox("Value to replace String/Text field", placeholder="NA")
+                                    .bindProperty("replaceNullTextWith"),
+                                )
+                            )
+                            .addElement(
+                                Checkbox("For numeric columns").bindProperty("replaceNullForNumericFields")
+                            )
+                            .addElement(
+                                Condition()
+                                .ifEqual(
+                                    PropExpr("component.properties.replaceNullForNumericFields"),
+                                    BooleanExpr(True),
+                                )
+                                .then(
+                                    NumberBox("Value to replace Numeric field", placeholder="0")
+                                    .bindProperty("replaceNullNumericWith"),
+                                )
+                            )
+                            .addElement(NativeText("Remove unwanted characters"))
+                            .addElement(options)
+                        )
                     )
                 )
-                .addElement(NativeText("Remove unwanted characters"))
-                .addElement(options)
-                .addElement(horizontalDivider)
             )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        diagnostics = super(DataCleansing, self).validate(context,component)
+        diagnostics = super(DataCleansing, self).validate(context, component)
         if (component.properties.removeRowNullAllCols == False) and (len(component.properties.columnNames) == 0):
             diagnostics.append(
-                Diagnostic("component.properties.removeRowNullAllCols", "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
+                Diagnostic("component.properties.removeRowNullAllCols",
+                           "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
-        struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
-        relation_name = self.get_relation_names(newState,context)
+        relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
-            newState.properties, 
+            newState.properties,
             schema=json.dumps(fields_array),
-            relation_name = relation_name
+            relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
 
@@ -178,7 +201,7 @@ class DataCleansing(MacroSpec):
         # Get the table name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
-        # generate the actual macro call given the component's 
+        # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
             "'" + table_name + "'",
@@ -198,7 +221,6 @@ class DataCleansing(MacroSpec):
             str(props.removeRowNullAllCols).lower()
         ]
 
-
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
 
@@ -217,7 +239,8 @@ class DataCleansing(MacroSpec):
             replaceNullForNumericFields=parametersMap.get('replaceNullForNumericFields').lower() == 'true',
             replaceNullNumericWith=float(parametersMap.get('replaceNullNumericWith')),
             trimWhiteSpace=parametersMap.get('trimWhiteSpace').lower() == 'true',
-            removeTabsLineBreaksAndDuplicateWhitespace=parametersMap.get('removeTabsLineBreaksAndDuplicateWhitespace').lower() == 'true',
+            removeTabsLineBreaksAndDuplicateWhitespace=parametersMap.get(
+                'removeTabsLineBreaksAndDuplicateWhitespace').lower() == 'true',
             allWhiteSpace=parametersMap.get('allWhiteSpace').lower() == 'true',
             cleanLetters=parametersMap.get('cleanLetters').lower() == 'true',
             cleanPunctuations=parametersMap.get('cleanPunctuations').lower() == 'true',
@@ -231,8 +254,8 @@ class DataCleansing(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", properties.relation_name),
-                MacroParameter("schema", properties.schema),
+                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("modifyCase", properties.modifyCase),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
                 MacroParameter("replaceNullTextFields", str(properties.replaceNullTextFields).lower()),
@@ -240,7 +263,8 @@ class DataCleansing(MacroSpec):
                 MacroParameter("replaceNullForNumericFields", str(properties.replaceNullForNumericFields).lower()),
                 MacroParameter("replaceNullNumericWith", str(properties.replaceNullNumericWith)),
                 MacroParameter("trimWhiteSpace", str(properties.trimWhiteSpace).lower()),
-                MacroParameter("removeTabsLineBreaksAndDuplicateWhitespace", str(properties.removeTabsLineBreaksAndDuplicateWhitespace).lower()),
+                MacroParameter("removeTabsLineBreaksAndDuplicateWhitespace",
+                               str(properties.removeTabsLineBreaksAndDuplicateWhitespace).lower()),
                 MacroParameter("allWhiteSpace", str(properties.allWhiteSpace).lower()),
                 MacroParameter("cleanLetters", str(properties.cleanLetters).lower()),
                 MacroParameter("cleanPunctuations", str(properties.cleanPunctuations).lower()),
@@ -252,12 +276,11 @@ class DataCleansing(MacroSpec):
     def updateInputPortSlug(self, component: Component, context: SqlContext):
         schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
-        struct_fields = [StructField(field["name"], StringType(), True) for field in fields_array]
-        relation_name = self.get_relation_names(component,context)
+        relation_name = self.get_relation_names(component, context)
 
         newProperties = dataclasses.replace(
-            component.properties, 
+            component.properties,
             schema=json.dumps(fields_array),
-            relation_name = relation_name
+            relation_name=relation_name
         )
         return component.bindProperties(newProperties)

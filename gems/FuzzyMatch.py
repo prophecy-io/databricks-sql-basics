@@ -3,7 +3,6 @@ from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from typing import Optional
 
 
 class MatchField(ABC):
@@ -14,6 +13,7 @@ class FuzzyMatch(MacroSpec):
     name: str = "FuzzyMatch"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
+    minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
     class AddMatchField(MatchField):
@@ -147,7 +147,7 @@ class FuzzyMatch(MacroSpec):
             .addElement(
             ColumnsLayout(gap=("1rem"), height=("100%"))
             .addColumn(
-                Ports(allowInputAddOrDelete=True), "content"
+                Ports(), "content"
             )
             .addColumn(VerticalDivider(), width="content")
             .addColumn(tabs)
@@ -207,7 +207,7 @@ class FuzzyMatch(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", properties.relation_name),
+                MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("mode", properties.mode),
                 MacroParameter("sourceIdCol", properties.sourceIdCol),
                 MacroParameter("recordIdCol", properties.recordIdCol),

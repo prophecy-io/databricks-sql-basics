@@ -16,17 +16,17 @@
         {%- if key == 'custom' -%}
             {%- set func_name = 'LEVENSHTEIN' -%}
         {%- elif key == 'name' -%}
-            {%- set func_name = 'AI_SIMILARITY' -%}
+            {%- set func_name = 'LEVENSHTEIN' -%}
         {%- elif key == 'phone' -%}
             {%- set func_name = 'EQUALS' -%}
         {%- elif key == 'address' -%}
-            {%- set func_name = 'AI_SIMILARITY' -%}
+            {%- set func_name = 'LEVENSHTEIN' -%}
         {%- elif key == 'exact' -%}
             {%- set func_name = 'EXACT' -%}
         {%- elif key == 'equals' -%}
             {%- set func_name = 'EQUALS' -%}
         {%- else -%}
-            {%- set func_name = 'AI_SIMILARITY' -%}
+            {%- set func_name = 'LEVENSHTEIN' -%}
         {%- endif -%}
 
         {%- for col in columns -%}
@@ -93,8 +93,6 @@ impose_function_match as (
         case
             when function_name = 'LEVENSHTEIN' then
                 (1 - ( LEVENSHTEIN(column_value_1, column_value_2) / GREATEST(length(column_value_1), length(column_value_2)))) * 100
-            when function_name = 'AI_SIMILARITY' then
-                (ai_similarity(column_value_1, column_value_2)) * 100
             when function_name = 'EXACT' AND (column_value_1 = REVERSE(column_value_2) AND column_value_2 = REVERSE(column_value_1)) then
                 100.0
             when function_name = 'EXACT' AND (column_value_1 <> REVERSE(column_value_2) OR column_value_2 = REVERSE(column_value_1)) then
