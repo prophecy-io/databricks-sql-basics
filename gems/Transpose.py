@@ -6,19 +6,19 @@ from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
 
 
 class Transpose(MacroSpec):
     name: str = "Transpose"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
+    minNumOfInputPorts: int = 1
 
 
     @dataclass(frozen=True)
     class TransposeProperties(MacroProperties):
         # properties for the component with default values
-        schema: Optional[StructType] = StructType([])
+        schema: str = ''
         relation_name: List[str] = field(default_factory=list)
         keyColumns: Optional[List[str]] = field(default_factory=list)
         dataColumns: Optional[List[str]] = field(default_factory=list)
@@ -46,7 +46,7 @@ class Transpose(MacroSpec):
         # Define the UI dialog structure for the component
         return Dialog("Transpose").addElement(
             ColumnsLayout(gap="1rem", height="100%")
-            .addColumn(Ports(allowInputAddOrDelete=True, minInputPorts=1), "content")
+            .addColumn(Ports(), "content")
             .addColumn(
                 StackLayout(height=("100%"))
                 .addElement(
@@ -90,7 +90,6 @@ class Transpose(MacroSpec):
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
         diagnostics = super(Transpose, self).validate(context,component)
-
         if not component.properties.keyColumns:
             diagnostics.append(
                 Diagnostic("properties.keyColumns", f"Key columns can't be empty.",SeverityLevelEnum.Error)
@@ -100,20 +99,18 @@ class Transpose(MacroSpec):
             diagnostics.append(
                 Diagnostic("properties.dataColumns", f"Data columns can't be empty.",SeverityLevelEnum.Error)
             )
-            
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        portSchema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
-        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
-        relation_name = self.get_relation_names(newState,context)
+        schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
+        relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
-            newState.properties, 
-            schema = StructType(struct_fields),
-            relation_name = relation_name
+            newState.properties,
+            schema=json.dumps(fields_array),
+            relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
 
@@ -121,16 +118,15 @@ class Transpose(MacroSpec):
         # Get the table name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
-        # Get existing column names
-        column_names = [field.name for field in props.schema.fields]
+        allColumnNames = [field["name"] for field in json.loads(props.schema)]
 
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
             "'" + table_name + "'",
-            str(column_names),
             str(props.keyColumns),
-            str(props.dataColumns)
+            str(props.dataColumns),
+            str(allColumnNames)
         ]
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
@@ -141,6 +137,7 @@ class Transpose(MacroSpec):
         parametersMap = self.convertToParameterMap(properties.parameters)
         return Transpose.TransposeProperties(
             relation_name=parametersMap.get('relation_name'),
+            schema=parametersMap.get('schema'),
             keyColumns=json.loads(parametersMap.get('keyColumns').replace("'", '"')),
             dataColumns=json.loads(parametersMap.get('dataColumns').replace("'", '"'))
         )
@@ -152,20 +149,20 @@ class Transpose(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("keyColumns", json.dumps(properties.keyColumns)),
                 MacroParameter("dataColumns", json.dumps(properties.dataColumns))
             ],
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
-        portSchema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in portSchema["fields"]]
-        struct_fields = [StructField(field["name"], StructType(), True) for field in fields_array]
-        relation_name = self.get_relation_names(component,context)
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
+        relation_name = self.get_relation_names(component, context)
 
         newProperties = dataclasses.replace(
-            component.properties, 
-            schema = StructType(struct_fields),
-            relation_name = relation_name
+            component.properties,
+            schema=json.dumps(fields_array),
+            relation_name=relation_name
         )
         return component.bindProperties(newProperties)

@@ -1,9 +1,9 @@
 
 {%- macro Transpose(
     relation_name,
-    schema,
     keyColumns,
-    dataColumns) -%}
+    dataColumns,
+    schema=[]) -%}
 
   {%- set available_cols = [] -%}
   {%- for col in dataColumns -%}
