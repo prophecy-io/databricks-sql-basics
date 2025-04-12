@@ -34,9 +34,6 @@
         {%- endfor -%}
     {%- endif -%}
 
-    {%- if columnNames | length > 0 and expressionToBeApplied | length == 0 -%}
-        select 1
-    {%- else -%}
-        select {{ select_expressions | join(',\n        ') }} from {{ relation }}
-    {%- endif -%}
+    select {{ select_expressions | join(',\n        ') }} from {{ relation }}
+
 {%- endmacro -%}

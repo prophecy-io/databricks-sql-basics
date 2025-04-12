@@ -1,8 +1,8 @@
 {% macro MultiColumnRename(
     relation_name,
-    schema,
     columnNames,
     renameMethod,
+    schema,
     editType = '',
     editWith = '',
     customExpression='')
