@@ -57,13 +57,18 @@ class TextToColumns(MacroSpec):
                 .addElement(
                     StackLayout(height="100%")
                     .addElement(
-                        StackLayout()
+                        StepContainer()
                         .addElement(
-                            SchemaColumnsDropdown("Select Column to Split")
-                            .withSearchEnabled()
-                            .bindSchema("component.ports.inputs[0].schema")
-                            .bindProperty("columnNames")
-                            .showErrorsFor("columnNames")
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(
+                                            SchemaColumnsDropdown("Select Column to Split")
+                                            .bindSchema("component.ports.inputs[0].schema")
+                                            .bindProperty("columnNames")
+                                            .showErrorsFor("columnNames")
+                                        )
+                                )
                         )
                     )
                     .addElement(

@@ -67,7 +67,7 @@ class MultiColumnRename(MacroSpec):
                             StackLayout(height="100%")
                             .addElement(TitleElement("Select columns to rename"))
                             .addElement(
-                                SchemaColumnsDropdown("")
+                                SchemaColumnsDropdown("", appearance = "minimal")
                                 .withMultipleSelection()
                                 .bindSchema("component.ports.inputs[0].schema")
                                 .bindProperty("columnNames")

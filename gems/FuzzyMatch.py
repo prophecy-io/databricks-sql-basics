@@ -124,10 +124,10 @@ class FuzzyMatch(MacroSpec):
                         SchemaColumnsDropdown("Field Name")
                         .bindSchema("component.ports.inputs[0].schema")
                         .bindProperty("record.AddMatchField.columnName")
-                        , "0.6fr")
+                        , "0.5fr")
                     .addColumn(
                         matchFunction,
-                        "0.4fr"
+                        "0.5fr"
                     )
                 )
                 .addColumn(ListItemDelete("delete"), width="content")

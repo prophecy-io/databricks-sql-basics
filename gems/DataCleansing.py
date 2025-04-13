@@ -60,7 +60,7 @@ class DataCleansing(MacroSpec):
                                      )
                           )
 
-        selectCol = (SchemaColumnsDropdown("").withMultipleSelection().bindSchema(
+        selectCol = (SchemaColumnsDropdown("", appearance = "minimal").withMultipleSelection().bindSchema(
             "component.ports.inputs[0].schema").bindProperty("columnNames"))
 
         options = (ColumnsLayout(gap="1rem", height="100%")

@@ -57,7 +57,7 @@ class MultiColumnEdit(MacroSpec):
                         .addElement(
                             StackLayout(height="100%")
                             .addElement(
-                                SchemaColumnsDropdown("Selected columns to edit")
+                                SchemaColumnsDropdown("Selected columns to edit", appearance = "minimal")
                                 .withMultipleSelection().bindSchema("component.ports.inputs[0].schema").bindProperty(
                                     "columnNames")
                             )
