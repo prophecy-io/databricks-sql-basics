@@ -14,7 +14,6 @@ class Transpose(MacroSpec):
     category: str = "Transform"
     minNumOfInputPorts: int = 1
 
-
     @dataclass(frozen=True)
     class TransposeProperties(MacroProperties):
         # properties for the component with default values
@@ -23,7 +22,7 @@ class Transpose(MacroSpec):
         keyColumns: Optional[List[str]] = field(default_factory=list)
         dataColumns: Optional[List[str]] = field(default_factory=list)
 
-    def get_relation_names(self,component: Component, context: SqlContext):
+    def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
             upstreamNode = None
@@ -32,14 +31,14 @@ class Transpose(MacroSpec):
                     upstreamNodeId = connection.source
                     upstreamNode = context.graph.nodes.get(upstreamNodeId)
             all_upstream_nodes.append(upstreamNode)
-        
+
         relation_name = []
         for upstream_node in all_upstream_nodes:
-            if upstream_node is None or upstream_node.slug is None:
+            if upstream_node is None or upstream_node.label is None:
                 relation_name.append("")
             else:
-                relation_name.append(upstream_node.slug)
-        
+                relation_name.append(upstream_node.label)
+
         return relation_name
 
     def dialog(self) -> Dialog:
@@ -50,54 +49,64 @@ class Transpose(MacroSpec):
             .addColumn(
                 StackLayout(height=("100%"))
                 .addElement(
-                    SchemaColumnsDropdown("Key Columns")
-                        .withMultipleSelection()
-                        .bindSchema("component.ports.inputs[0].schema")
-                        .bindProperty("keyColumns")
-                        .showErrorsFor("keyColumns")
+                    StepContainer()
+                    .addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%")
+                            .addElement(
+                                SchemaColumnsDropdown("Key Columns", appearance="minimal")
+                                .withMultipleSelection()
+                                .bindSchema("component.ports.inputs[0].schema")
+                                .bindProperty("keyColumns")
+                                .showErrorsFor("keyColumns")
+                            )
+                            .addElement(
+                                SchemaColumnsDropdown("Data Columns", appearance="minimal")
+                                .withMultipleSelection()
+                                .bindSchema("component.ports.inputs[0].schema")
+                                .bindProperty("dataColumns")
+                                .showErrorsFor("dataColumns")
+                            )
+                        )
+                    )
                 )
                 .addElement(
-                    SchemaColumnsDropdown("Data Columns")
-                        .withMultipleSelection()
-                        .bindSchema("component.ports.inputs[0].schema")
-                        .bindProperty("dataColumns")
-                        .showErrorsFor("dataColumns")
-                ).addElement(
-                        AlertBox(
-                            variant="success",
-                            _children=[
-                                Markdown(
-                                    "* **Key Columns** : Columns that act as **identifiers** for each row. These remain as-is during the transpose. Think of them like primary keys or grouping fields (e.g., `id`, `country`, `date`).\n"
-                                    "* **Data Columns** : Columns that you want to **pivot into Name/Value pairs**. Each of these becomes a row in the transposed output.\n\n"
-                                    "Let's understand from a simple example.\n\n"
-                                    "**Input:**\n\n"
-                                    "| id | country | sales | cost |\n"
-                                    "|----|---------|-------|------|\n"
-                                    "| 1  | USA     | 100   | 50   |\n\n"
-                                    "**Transposed:** (with key columns = `id`, `country` and data columns = `sales`, `cost`)\n\n"
-                                    "| id | country | Name  | Value |\n"
-                                    "|----|---------|-------|-------|\n"
-                                    "| 1  | USA     | sales | 100   |\n"
-                                    "| 1  | USA     | cost  | 50    |"
-                                )
-                            ]
-                        )
+                    AlertBox(
+                        variant="success",
+                        _children=[
+                            Markdown(
+                                "* **Key Columns** : Columns that act as **identifiers** for each row. These remain as-is during the transpose. Think of them like primary keys or grouping fields (e.g., `id`, `country`, `date`).\n"
+                                "* **Data Columns** : Columns that you want to **pivot into Name/Value pairs**. Each of these becomes a row in the transposed output.\n\n"
+                                "Let's understand from a simple example.\n\n"
+                                "**Input:**\n\n"
+                                "| id | country | sales | cost |\n"
+                                "|----|---------|-------|------|\n"
+                                "| 1  | USA     | 100   | 50   |\n\n"
+                                "**Transposed:** (with key columns = `id`, `country` and data columns = `sales`, `cost`)\n\n"
+                                "| id | country | Name  | Value |\n"
+                                "|----|---------|-------|-------|\n"
+                                "| 1  | USA     | sales | 100   |\n"
+                                "| 1  | USA     | cost  | 50    |"
+                            )
+                        ]
+                    )
                 ),
-            "5fr"
+                "5fr"
             )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        diagnostics = super(Transpose, self).validate(context,component)
+        diagnostics = super(Transpose, self).validate(context, component)
         if not component.properties.keyColumns:
             diagnostics.append(
-                Diagnostic("properties.keyColumns", f"Key columns can't be empty.",SeverityLevelEnum.Error)
+                Diagnostic("properties.keyColumns", f"Key columns can't be empty.", SeverityLevelEnum.Error)
             )
 
         if not component.properties.dataColumns:
             diagnostics.append(
-                Diagnostic("properties.dataColumns", f"Data columns can't be empty.",SeverityLevelEnum.Error)
+                Diagnostic("properties.dataColumns", f"Data columns can't be empty.", SeverityLevelEnum.Error)
             )
         return diagnostics
 

@@ -44,10 +44,10 @@ class FuzzyMatch(MacroSpec):
 
         relation_name = []
         for upstream_node in all_upstream_nodes:
-            if upstream_node is None or upstream_node.slug is None:
+            if upstream_node is None or upstream_node.label is None:
                 relation_name.append("")
             else:
-                relation_name.append(upstream_node.slug)
+                relation_name.append(upstream_node.label)
 
         return relation_name
 
@@ -124,10 +124,10 @@ class FuzzyMatch(MacroSpec):
                         SchemaColumnsDropdown("Field Name")
                         .bindSchema("component.ports.inputs[0].schema")
                         .bindProperty("record.AddMatchField.columnName")
-                        , "0.6fr")
+                        , "0.5fr")
                     .addColumn(
                         matchFunction,
-                        "0.4fr"
+                        "0.5fr"
                     )
                 )
                 .addColumn(ListItemDelete("delete"), width="content")

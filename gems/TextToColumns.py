@@ -38,10 +38,10 @@ class TextToColumns(MacroSpec):
 
         relation_name = []
         for upstream_node in all_upstream_nodes:
-            if upstream_node is None or upstream_node.slug is None:
+            if upstream_node is None or upstream_node.label is None:
                 relation_name.append("")
             else:
-                relation_name.append(upstream_node.slug)
+                relation_name.append(upstream_node.label)
 
         return relation_name
 
@@ -57,13 +57,21 @@ class TextToColumns(MacroSpec):
                 .addElement(
                     StackLayout(height="100%")
                     .addElement(
-                        StackLayout()
+                        TitleElement("Select Column to Split")
+                    )
+                    .addElement(
+                        StepContainer()
                         .addElement(
-                            SchemaColumnsDropdown("Select Column to Split")
-                            .withSearchEnabled()
-                            .bindSchema("component.ports.inputs[0].schema")
-                            .bindProperty("columnNames")
-                            .showErrorsFor("columnNames")
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(
+                                            SchemaColumnsDropdown("", appearance = "minimal")
+                                            .bindSchema("component.ports.inputs[0].schema")
+                                            .bindProperty("columnNames")
+                                            .showErrorsFor("columnNames")
+                                        )
+                                )
                         )
                     )
                     .addElement(
