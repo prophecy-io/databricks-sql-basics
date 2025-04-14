@@ -155,11 +155,45 @@ class FuzzyMatch(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context, component)
+        diagnostics = super(FuzzyMatch, self).validate(context, component)
+
+        if len(component.properties.mode) == 0:
+            diagnostics.append(
+                Diagnostic("component.properties.mode", "Please select Merge/Purge mode",
+                           SeverityLevelEnum.Error))
+
+        if component.properties.mode == "PURGE":
+            if len(component.properties.recordIdCol) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.recordIdCol", "Please select a Record Id",
+                               SeverityLevelEnum.Error))
+
+            if len(component.properties.matchFields) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.matchFields", "Please add a match field",
+                               SeverityLevelEnum.Error))
+
+        if component.properties.mode == "MERGE":
+            if len(component.properties.sourceIdCol) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.sourceIdCol", "Please select a Source Id",
+                               SeverityLevelEnum.Error))
+
+            if len(component.properties.recordIdCol) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.recordIdCol", "Please select a Record Id",
+                               SeverityLevelEnum.Error))
+
+            if len(component.properties.matchFields) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.matchFields", "Please add a match field",
+                               SeverityLevelEnum.Error))
+
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        relation_name = self.get_relation_names(component, context)
+        relation_name = self.get_relation_names(newState, context)
         return (replace(newState, properties=replace(newState.properties, relation_name=relation_name)))
 
     def apply(self, props: FuzzyMatchProperties) -> str:
