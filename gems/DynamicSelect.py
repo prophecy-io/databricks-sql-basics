@@ -38,7 +38,7 @@ class DynamicSelect(MacroSpec):
         relation_name: List[str] = field(default_factory=list)
         targetTypes: str = ''
         # custom expression
-        customExpression: str = None
+        customExpression: str = ""
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
