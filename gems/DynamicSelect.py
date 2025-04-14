@@ -5,7 +5,6 @@ import dataclasses
 from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
-from prophecy.cb.ui.uispec import *
 from pyspark.sql import *
 import json
 
@@ -13,12 +12,12 @@ class DynamicSelect(MacroSpec):
     name: str = "DynamicSelect"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
+    minNumOfInputPorts: int = 1
 
 
     @dataclass(frozen=True)
     class DynamicSelectProperties(MacroProperties):
         # properties for the component with default values
-        relation: str = 'in0'
         selectUsing: str = "SELECT_FIELD_TYPES"
         # DATA TYPES
         boolTypeChecked: bool = False
@@ -35,80 +34,111 @@ class DynamicSelect(MacroSpec):
         timestampTypeChecked: bool = False
         structTypeChecked: bool = False
         schema: str = ''
+        relation_name: List[str] = field(default_factory=list)
         targetTypes: str = ''
         # custom expression
-        customExpression: str = ''
+        customExpression: str = ""
+
+    def get_relation_names(self, component: Component, context: SqlContext):
+        all_upstream_nodes = []
+        for inputPort in component.ports.inputs:
+            upstreamNode = None
+            for connection in context.graph.connections:
+                if connection.targetPort == inputPort.id:
+                    upstreamNodeId = connection.source
+                    upstreamNode = context.graph.nodes.get(upstreamNodeId)
+            all_upstream_nodes.append(upstreamNode)
+
+        relation_name = []
+        for upstream_node in all_upstream_nodes:
+            if upstream_node is None or upstream_node.label is None:
+                relation_name.append("")
+            else:
+                relation_name.append(upstream_node.label)
+
+        return relation_name
 
     def dialog(self) -> Dialog:
         return Dialog("DynamicSelect").addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(
-                Ports(allowInputAddOrDelete=True),
+                Ports(),
                 "content"
             )
             .addColumn(VerticalDivider(), width="content")
             .addColumn(
                 StackLayout(gap=("1rem"), width="50%", height=("100bh"))
-                .addElement(TitleElement("Configuration"))
                 .addElement(
-                    TextBox("Table name")
-                    .bindPlaceholder("in0")
-                    .bindProperty("relation")
+                    StepContainer()
+                        .addElement(
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(TitleElement("Configuration"))
+                                        .addElement(
+                                            SelectBox("")
+                                            .addOption("Select field types", "SELECT_FIELD_TYPES")
+                                            .addOption("Select via expression", "SELECT_EXPR")
+                                            .bindProperty("selectUsing")
+                                        )
+                                )
+                        )
                 )
                 .addElement(
-                    SelectBox("")
-                    .addOption("Select field types", "SELECT_FIELD_TYPES")
-                    .addOption("Select via expression", "SELECT_EXPR")
-                    .bindProperty("selectUsing")
-                )
-                .addElement(
-                    Condition()
-                    .ifEqual(
-                        PropExpr("component.properties.selectUsing"),
-                        StringExpr("SELECT_FIELD_TYPES"),
-                    )
-                    .then(
-                        StackLayout(gap=("1rem"), width="50%", height=("100bh"))
-                        .addElement(TitleElement("Select Field types"))
-                        .addElement(Checkbox("Boolean", "boolTypeChecked"))
-                        .addElement(Checkbox("String", "strTypeChecked"))
-                        .addElement(Checkbox("Integer", "intTypeChecked"))
-                        .addElement(Checkbox("Short", "shortTypeChecked"))
-                        .addElement(Checkbox("Byte", "byteTypeChecked"))
-                        .addElement(Checkbox("Long", "longTypeChecked"))
-                        .addElement(Checkbox("Float", "floatTypeChecked"))
-                        .addElement(Checkbox("Double", "doubleTypeChecked"))
-                        .addElement(Checkbox("Decimal", "decimalTypeChecked"))
-                        .addElement(Checkbox("Binary", "binaryTypeChecked"))
-                        .addElement(Checkbox("Date", "dateTypeChecked"))
-                        .addElement(Checkbox("Timestamp", "timestampTypeChecked"))
-                        .addElement(Checkbox("Struct", "structTypeChecked"))
-                    )
-                    .otherwise(
-                        StackLayout()
+                    StepContainer()
                         .addElement(
-                            TextBox("Enter Custom SQL Expression")
-                            .bindPlaceholder(
-                                """contains(column_name, 'user')""")
-                            .bindProperty("customExpression")
+                            Step()
+                                .addElement(
+                                    StackLayout(height="100%")
+                                        .addElement(
+                                            Condition()
+                                            .ifEqual(
+                                                PropExpr("component.properties.selectUsing"),
+                                                StringExpr("SELECT_FIELD_TYPES"),
+                                            )
+                                            .then(
+                                                StackLayout(gap=("1rem"), width="50%")
+                                                .addElement(TitleElement("Select Field types"))
+                                                .addElement(Checkbox("Boolean", "boolTypeChecked"))
+                                                .addElement(Checkbox("String", "strTypeChecked"))
+                                                .addElement(Checkbox("Integer", "intTypeChecked"))
+                                                .addElement(Checkbox("Short", "shortTypeChecked"))
+                                                .addElement(Checkbox("Byte", "byteTypeChecked"))
+                                                .addElement(Checkbox("Long", "longTypeChecked"))
+                                                .addElement(Checkbox("Float", "floatTypeChecked"))
+                                                .addElement(Checkbox("Double", "doubleTypeChecked"))
+                                                .addElement(Checkbox("Decimal", "decimalTypeChecked"))
+                                                .addElement(Checkbox("Binary", "binaryTypeChecked"))
+                                                .addElement(Checkbox("Date", "dateTypeChecked"))
+                                                .addElement(Checkbox("Timestamp", "timestampTypeChecked"))
+                                                .addElement(Checkbox("Struct", "structTypeChecked"))
+                                            )
+                                            .otherwise(
+                                                StackLayout()
+                                                .addElement(
+                                                    TextBox("Enter Custom SQL Expression")
+                                                    .bindPlaceholder(
+                                                        """contains(column_name, 'user')""")
+                                                    .bindProperty("customExpression")
+                                                )
+                                                .addElement(
+                                                    AlertBox(
+                                                        variant="success",
+                                                        _children=[
+                                                            Markdown(
+                                                                "We can use following metadata columns in our expressions"
+                                                                "\n"
+                                                                "* **column_name** - Name of column, eg. name, country\n"
+                                                                "* **column_type** - Type of column, eg. String \n"
+                                                                "* **field_number** - Index of column in dataframe, eg. 0 for first column\n"
+                                                            )
+                                                        ]
+                                                    )
+                                                )
+                                            )
+                                        )
+                                )
                         )
-                        .addElement(
-                            AlertBox(
-                                variant="success",
-                                _children=[
-                                    Markdown(
-                                        "We can use following metadata columns in our expressions"
-                                        "\n"
-                                        "* **column_name** - Name of column, eg. name, country\n"
-                                        "* **column_type** - Type of column, eg. string, int\n"
-                                        "* **column_size** - Size of column in bytes, eg. int -> 4, boolean -> 1 (-1 "
-                                        "for undefined)\n"
-                                        "* **field_number** - Index of column in dataframe, eg. 0 for first column\n"
-                                    )
-                                ]
-                            )
-                        )
-                    )
                 )
             )
         )
@@ -146,19 +176,30 @@ class DynamicSelect(MacroSpec):
             target_types.append("Timestamp")
         if newState.properties.structTypeChecked:
             target_types.append("Struct")
+
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
-        newProperties = dataclasses.replace(newState.properties, schema=json.dumps(fields_array), targetTypes=json.dumps(target_types))
+        relation_name = self.get_relation_names(newState, context)
+
+        newProperties = dataclasses.replace(
+            newState.properties,
+            schema=json.dumps(fields_array),
+            targetTypes=json.dumps(target_types),
+            relation_name = relation_name
+        )
         return newState.bindProperties(newProperties)
 
     def apply(self, props: DynamicSelectProperties) -> str:
+        # Get the table name
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        relation = "'" + props.relation + "'"
+        relation = "'" + table_name + "'"
         schema = props.schema
         targetTypes = props.targetTypes
         selectUsing = f"'{props.selectUsing}'"
-        customExpression = props.customExpression
+        customExpression = "\"" + props.customExpression + "\""
         non_empty_param = ",".join(x for x in [relation, schema, targetTypes, selectUsing, customExpression] if x is not None and len(x) != 0)
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
 
@@ -166,7 +207,7 @@ class DynamicSelect(MacroSpec):
         parametersMap = self.convertToParameterMap(properties.parameters)
         targetTypesList = json.loads(parametersMap.get('targetTypes').replace("'", '"'))  # Parse targetTypes once
         return DynamicSelect.DynamicSelectProperties(
-            relation=parametersMap.get('relation')[1:-1],
+            relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
             targetTypes=parametersMap.get('targetTypes'),
             customExpression=parametersMap.get('customExpression'),
@@ -192,12 +233,51 @@ class DynamicSelect(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation", properties.relation),
-                MacroParameter("schema", properties.schema),
+                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("targetTypes", properties.targetTypes),
                 MacroParameter("customExpression", properties.customExpression),
                 MacroParameter("selectUsing", properties.selectUsing),
             ],
         )
+    def updateInputPortSlug(self, component: Component, context: SqlContext):
+        # Handle changes in the component's state and return the new state
+        target_types = []
+        if component.properties.boolTypeChecked:
+            target_types.append("Boolean")
+        if component.properties.strTypeChecked:
+            target_types.append("String")
+        if component.properties.intTypeChecked:
+            target_types.append("Integer")
+        if component.properties.shortTypeChecked:
+            target_types.append("Short")
+        if component.properties.byteTypeChecked:
+            target_types.append("Byte")
+        if component.properties.longTypeChecked:
+            target_types.append("Long")
+        if component.properties.floatTypeChecked:
+            target_types.append("Float")
+        if component.properties.doubleTypeChecked:
+            target_types.append("Double")
+        if component.properties.decimalTypeChecked:
+            target_types.append("Decimal")
+        if component.properties.binaryTypeChecked:
+            target_types.append("Binary")
+        if component.properties.dateTypeChecked:
+            target_types.append("Date")
+        if component.properties.timestampTypeChecked:
+            target_types.append("Timestamp")
+        if component.properties.structTypeChecked:
+            target_types.append("Struct")
 
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
+        relation_name = self.get_relation_names(component, context)
 
+        newProperties = dataclasses.replace(
+            component.properties,
+            schema=json.dumps(fields_array),
+            targetTypes=json.dumps(target_types),
+            relation_name = relation_name
+        )
+        return component.bindProperties(newProperties)
