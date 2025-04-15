@@ -21,6 +21,9 @@ class Transpose(MacroSpec):
         relation_name: List[str] = field(default_factory=list)
         keyColumns: Optional[List[str]] = field(default_factory=list)
         dataColumns: Optional[List[str]] = field(default_factory=list)
+        customNames: bool = False
+        nameColumn: str = "Name"
+        valueColumn: str = "Value"
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -71,6 +74,25 @@ class Transpose(MacroSpec):
                         )
                     )
                 )
+                .addElement(Checkbox("Use custom output column names for Name & Value pairs").bindProperty("customNames"))
+                .addElement(
+                    Condition()
+                    .ifEqual(
+                        PropExpr("component.properties.customNames"),
+                        BooleanExpr(True),
+                    )
+                    .then(
+                        StepContainer()
+                        .addElement(
+                            Step()
+                            .addElement(
+                                ColumnsLayout(gap="1rem", height="100%")
+                                    .addColumn(TextBox("Name Column", placeholder="Name").bindProperty("nameColumn"), "1fr")
+                                    .addColumn(TextBox("Value Column", placeholder="Value").bindProperty("valueColumn"), "1fr")
+                            )
+                        )
+                    )
+                )
                 .addElement(
                     AlertBox(
                         variant="success",
@@ -108,6 +130,37 @@ class Transpose(MacroSpec):
             diagnostics.append(
                 Diagnostic("properties.dataColumns", f"Data columns can't be empty.", SeverityLevelEnum.Error)
             )
+
+        if component.properties.customNames and len(component.properties.nameColumn) == 0:
+            diagnostics.append(
+                Diagnostic("properties.nameColumn", f"Name column can't be empty.", SeverityLevelEnum.Error)
+            )
+
+        if component.properties.customNames and len(component.properties.valueColumn) == 0:
+            diagnostics.append(
+                Diagnostic("properties.valueColumn", f"Value column can't be empty.", SeverityLevelEnum.Error)
+            )
+ 
+        missingDataColumns = []
+        for col in component.properties.dataColumns:
+            if col not in component.properties.schema:
+                missingDataColumns.append(col)
+                
+        if missingDataColumns:
+            diagnostics.append(
+                Diagnostic("properties.dataColumns", f"Data columns {missingDataColumns} are not present in input schema.", SeverityLevelEnum.Error)
+            )       
+
+        missingKeyColumns = []
+        for col in component.properties.keyColumns:
+            if col not in component.properties.schema:
+                missingKeyColumns.append(col)
+        
+        if missingKeyColumns:
+            diagnostics.append(
+                Diagnostic("properties.keyColumns", f"Key columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+            )
+            
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
@@ -119,6 +172,8 @@ class Transpose(MacroSpec):
         newProperties = dataclasses.replace(
             newState.properties,
             schema=json.dumps(fields_array),
+            nameColumn="Name" if not newState.properties.customNames else newState.properties.nameColumn,
+            valueColumn="Value" if not newState.properties.customNames else newState.properties.valueColumn,
             relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
@@ -131,12 +186,16 @@ class Transpose(MacroSpec):
 
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
+
         arguments = [
             "'" + table_name + "'",
             str(props.keyColumns),
             str(props.dataColumns),
+            "'" + props.nameColumn + "'",
+            "'" + props.valueColumn + "'",
             str(allColumnNames)
-        ]
+        ]                                
+
         non_empty_param = ",".join([param for param in arguments if param != ''])
         return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
 
@@ -147,6 +206,8 @@ class Transpose(MacroSpec):
         return Transpose.TransposeProperties(
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
+            nameColumn=parametersMap.get('nameColumn'),
+            valueColumn=parametersMap.get('valueColumn'),
             keyColumns=json.loads(parametersMap.get('keyColumns').replace("'", '"')),
             dataColumns=json.loads(parametersMap.get('dataColumns').replace("'", '"'))
         )
@@ -159,6 +220,8 @@ class Transpose(MacroSpec):
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
+                MacroParameter("nameColumn", str(properties.nameColumn)),
+                MacroParameter("valueColumn", str(properties.valueColumn)),
                 MacroParameter("keyColumns", json.dumps(properties.keyColumns)),
                 MacroParameter("dataColumns", json.dumps(properties.dataColumns))
             ],
