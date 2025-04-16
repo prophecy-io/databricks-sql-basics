@@ -163,7 +163,7 @@ class DataCleansing(MacroSpec):
                                     BooleanExpr(True),
                                 )
                                 .then(
-                                    NumberBox("Value to replace Numeric field", placeholder="0")
+                                    NumberBox("Value to replace Numeric field", placeholder="0").withMin(-9999999999999999)
                                     .bindProperty("replaceNullNumericWith"),
                                 )
                             )

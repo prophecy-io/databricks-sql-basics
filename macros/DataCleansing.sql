@@ -74,11 +74,11 @@
                 {%- endif -%}
 
                 {%- if removeTabsLineBreaksAndDuplicateWhitespace -%}
-                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\s+', ' ')" -%}
+                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\\\s+', ' ')" -%}
                 {%- endif -%}
 
                 {%- if allWhiteSpace -%}
-                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\s+', '')" -%}
+                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\\\s+', '')" -%}
                 {%- endif -%}
 
                 {%- if cleanLetters -%}
@@ -86,11 +86,11 @@
                 {%- endif -%}
 
                 {%- if cleanPunctuations -%}
-                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '[^a-zA-Z0-9\\s]', '')" -%}
+                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '[^a-zA-Z0-9\\\\s]', '')" -%}
                 {%- endif -%}
 
                 {%- if cleanNumbers -%}
-                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\d+', '')" -%}
+                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\\\d+', '')" -%}
                 {%- endif -%}
 
                 {%- if modifyCase == "makeLowercase" -%}
