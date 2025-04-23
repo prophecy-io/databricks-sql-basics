@@ -189,6 +189,36 @@ class FuzzyMatch(MacroSpec):
                     Diagnostic("component.properties.matchFields", "Please add a match field",
                                SeverityLevelEnum.Error))
 
+        # Extract all column names from the schema
+        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+
+        if len(component.properties.recordIdCol) > 0:
+            if component.properties.recordIdCol not in field_names:
+                diagnostics.append(
+                    Diagnostic("component.properties.recordIdCol", f"Selected recordId column {component.properties.recordIdCol} are not present in input schema.",
+                               SeverityLevelEnum.Error))
+
+        if len(component.properties.sourceIdCol) > 0:
+            if component.properties.sourceIdCol not in field_names:
+                diagnostics.append(
+                    Diagnostic("component.properties.sourceIdCol", f"Selected sourceId column {component.properties.sourceIdCol} are not present in input schema.",
+                               SeverityLevelEnum.Error))
+
+        # Extract column names from matchFields
+        match_field_columns = [field.columnName for field in component.properties.matchFields if field.columnName]
+        # Identify missing columns
+        missing_match_columns = [col for col in match_field_columns if col not in field_names]
+
+        # Append diagnostic if any are missing
+        if missing_match_columns:
+            diagnostics.append(
+                Diagnostic(
+                    "component.properties.matchFields",
+                    f"Selected matchField columns {missing_match_columns} are not present in input schema.",
+                    SeverityLevelEnum.Error
+                )
+            )
+
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:

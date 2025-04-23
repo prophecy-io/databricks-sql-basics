@@ -214,6 +214,15 @@ class TextToColumns(MacroSpec):
                     Diagnostic("properties.splitRowsColumnName", "Please provide a generated column name",
                                SeverityLevelEnum.Error))
 
+        # Extract all column names from the schema
+        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+
+        if len(component.properties.columnNames) > 0:
+            if component.properties.columnNames not in field_names:
+                diagnostics.append(
+                    Diagnostic("component.properties.columnNames", f"Selected column {component.properties.columnNames} is not present in input schema.",
+                               SeverityLevelEnum.Error))
+
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
