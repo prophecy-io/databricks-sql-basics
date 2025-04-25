@@ -13,7 +13,11 @@
     cleanLetters=False,
     cleanPunctuations=False,
     cleanNumbers=False,
-    removeRowNullAllCols=False
+    removeRowNullAllCols=False,
+    replaceNullDateFields=False,
+    replaceNullDateWith="1970-01-01",
+    replaceNullTimeFields=False,
+    replaceNullTimeWith="1970-01-01 00:00:00"
 ) %}
 
     {{ log("Applying dataset-specific cleansing operations", info=True) }}
@@ -106,6 +110,20 @@
                 {%- endif -%}
 
             {%- endif -%}
+
+            {%- if col_type_map.get(col_name) == "date" -%}
+                {%- if replaceNullDateFields -%}
+                    {%- set col_expr = "COALESCE(" ~ col_expr ~ ", DATE '" ~ replaceNullDateWith ~ "')" -%}
+                {%- endif -%}
+            {%- endif -%}
+
+            {%- if col_type_map.get(col_name) == "timestamp" -%}
+                {%- if replaceNullTimeFields -%}
+                    {%- set col_expr = "COALESCE(" ~ col_expr ~ ", TIMESTAMP '" ~ replaceNullTimeWith ~ "')" -%}
+                {%- endif -%}
+            {%- endif -%}
+
+
 
             {{ log("Appending transformed column expression", info=True) }}
             {%- set col_expr = col_expr ~ "::" ~ col_type_map.get(col_name) -%}
