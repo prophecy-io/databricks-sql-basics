@@ -86,7 +86,7 @@
                 {%- endif -%}
 
                 {%- if cleanLetters -%}
-                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '[^A-Za-z]', '')" -%}
+                    {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '[A-Za-z]+', '')" -%}
                 {%- endif -%}
 
                 {%- if cleanPunctuations -%}
