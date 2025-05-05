@@ -2,6 +2,7 @@ import dataclasses
 import json
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
+import datetime as dt
 
 
 class DataCleansing(MacroSpec):
@@ -32,6 +33,11 @@ class DataCleansing(MacroSpec):
         cleanPunctuations: bool = False
         cleanNumbers: bool = False
         modifyCase: str = "Keep original"
+        replaceNullDateFields: bool = False
+        replaceNullDateWith: str = "1970-01-01"
+        replaceNullTimeFields: bool = False
+        replaceNullTimeWith: str = "1970-01-01 00:00:00.0"
+
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -163,8 +169,36 @@ class DataCleansing(MacroSpec):
                                     BooleanExpr(True),
                                 )
                                 .then(
-                                    NumberBox("Value to replace Numeric field", placeholder="0")
+                                    NumberBox("Value to replace Numeric field", placeholder="0").withMin(-9999999999999999)
                                     .bindProperty("replaceNullNumericWith"),
+                                )
+                            )          
+                            .addElement(
+                                Checkbox("For Date columns").bindProperty("replaceNullDateFields")
+                            )
+                            .addElement(
+                                Condition()
+                                .ifEqual(
+                                    PropExpr("component.properties.replaceNullDateFields"),
+                                    BooleanExpr(True),
+                                )
+                                .then(
+                                    TextBox("Value to replace Date field in YYYY-MM-DD format", placeholder="1970-01-01")
+                                    .bindProperty("replaceNullDateWith"),
+                                )
+                            )
+                            .addElement(
+                                Checkbox("For Time columns").bindProperty("replaceNullTimeFields")
+                            )
+                            .addElement(
+                                Condition()
+                                .ifEqual(
+                                    PropExpr("component.properties.replaceNullTimeFields"),
+                                    BooleanExpr(True),
+                                )
+                                .then(
+                                    TextBox("Value to replace Time field in YYYY-MM-DD HH:MM:SS.s format", placeholder="1970-01-01 00:00:00.0")
+                                    .bindProperty("replaceNullTimeWith"),
                                 )
                             )
                             .addElement(NativeText("Remove unwanted characters"))
@@ -175,13 +209,46 @@ class DataCleansing(MacroSpec):
             )
         )
 
+    def is_valid_date(self, date_string, str_format) -> bool:
+            try:
+                dt.datetime.strptime(date_string, str_format)
+                return True
+            except ValueError:
+                return False
+
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
-        # Validate the component's state
         diagnostics = super(DataCleansing, self).validate(context, component)
         if (component.properties.removeRowNullAllCols == False) and (len(component.properties.columnNames) == 0):
             diagnostics.append(
                 Diagnostic("component.properties.removeRowNullAllCols",
                            "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
+
+        if len(component.properties.columnNames) > 0 :
+            missingKeyColumns = [col for col in component.properties.columnNames if
+                                 col not in component.properties.schema]
+            if missingKeyColumns:
+                diagnostics.append(
+                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                )
+                 
+        if component.properties.replaceNullDateFields and not self.is_valid_date(component.properties.replaceNullDateWith, "%Y-%m-%d"):
+            diagnostics.append(
+                Diagnostic(
+                    "component.properties.replaceNullDateFields",
+                    "Enter a valid date in YYYY-MM-DD format (e.g., 1970-01-01).",
+                    SeverityLevelEnum.Error
+                )
+            )
+
+        if component.properties.replaceNullTimeFields and not self.is_valid_date(component.properties.replaceNullTimeWith, "%Y-%m-%d %H:%M:%S.%f"):
+            diagnostics.append(
+                Diagnostic(
+                    "component.properties.replaceNullTimeFields",
+                    "Enter a valid timestamp in YYYY-MM-DD HH:MM:SS.sss format (e.g., 1970-01-01 00:00:00.000).",
+                    SeverityLevelEnum.Error
+                )
+            )
+
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
@@ -218,7 +285,11 @@ class DataCleansing(MacroSpec):
             str(props.cleanLetters).lower(),
             str(props.cleanPunctuations).lower(),
             str(props.cleanNumbers).lower(),
-            str(props.removeRowNullAllCols).lower()
+            str(props.removeRowNullAllCols).lower(),
+            str(props.replaceNullDateFields).lower(),
+            "'" + str(props.replaceNullDateWith) + "'",
+            str(props.replaceNullTimeFields).lower(),
+            "'" + str(props.replaceNullTimeWith) + "'" 
         ]
 
         non_empty_param = ",".join([param for param in arguments if param != ''])
@@ -245,7 +316,11 @@ class DataCleansing(MacroSpec):
             cleanLetters=parametersMap.get('cleanLetters').lower() == 'true',
             cleanPunctuations=parametersMap.get('cleanPunctuations').lower() == 'true',
             cleanNumbers=parametersMap.get('cleanNumbers').lower() == 'true',
-            removeRowNullAllCols=parametersMap.get('removeRowNullAllCols').lower() == 'true'
+            removeRowNullAllCols=parametersMap.get('removeRowNullAllCols').lower() == 'true',
+            replaceNullDateFields=parametersMap.get('replaceNullDateFields').lower() == 'true',
+            replaceNullDateWith=parametersMap.get('replaceNullDateWith')[1:-1],
+            replaceNullTimeFields=parametersMap.get('replaceNullTimeFields').lower() == 'true',
+            replaceNullTimeWith=parametersMap.get('replaceNullTimeWith')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -269,7 +344,11 @@ class DataCleansing(MacroSpec):
                 MacroParameter("cleanLetters", str(properties.cleanLetters).lower()),
                 MacroParameter("cleanPunctuations", str(properties.cleanPunctuations).lower()),
                 MacroParameter("cleanNumbers", str(properties.cleanNumbers).lower()),
-                MacroParameter("removeRowNullAllCols", str(properties.removeRowNullAllCols).lower())
+                MacroParameter("removeRowNullAllCols", str(properties.removeRowNullAllCols).lower()),
+                MacroParameter("replaceNullDateFields", str(properties.replaceNullDateFields).lower()),
+                MacroParameter("replaceNullDateWith", properties.replaceNullDateWith),
+                MacroParameter("replaceNullTimeFields", str(properties.replaceNullTimeFields).lower()),
+                MacroParameter("replaceNullTimeWith", properties.replaceNullTimeWith)
             ],
         )
 

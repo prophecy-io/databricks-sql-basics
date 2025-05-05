@@ -164,6 +164,14 @@ class MultiColumnEdit(MacroSpec):
                         Diagnostic("component.properties.prefixSuffixToBeAdded", "Please add prefix or suffix",
                                    SeverityLevelEnum.Error))
 
+        if len(component.properties.columnNames) > 0 :
+            missingKeyColumns = [col for col in component.properties.columnNames if
+                                 col not in component.properties.schema]
+            if missingKeyColumns:
+                diagnostics.append(
+                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                )
+
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:

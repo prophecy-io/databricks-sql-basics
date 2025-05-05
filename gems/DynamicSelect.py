@@ -145,7 +145,33 @@ class DynamicSelect(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context,component)
+        diagnostics = super(DynamicSelect, self).validate(context, component)
+        if component.properties.selectUsing == "SELECT_FIELD_TYPES" and not (
+            component.properties.boolTypeChecked or
+            component.properties.strTypeChecked or
+            component.properties.intTypeChecked or
+            component.properties.shortTypeChecked or
+            component.properties.byteTypeChecked or
+            component.properties.longTypeChecked or
+            component.properties.floatTypeChecked or
+            component.properties.doubleTypeChecked or
+            component.properties.decimalTypeChecked or
+            component.properties.binaryTypeChecked or
+            component.properties.dateTypeChecked or
+            component.properties.timestampTypeChecked or
+            component.properties.structTypeChecked
+        ):
+            diagnostics.append(
+                Diagnostic("component.properties.selectUsing",
+                           "Please select a field type from the options available", SeverityLevelEnum.Error))
+
+        if component.properties.selectUsing == "SELECT_EXPR":
+            if len(component.properties.customExpression) == 0:
+                diagnostics.append(
+                    Diagnostic("component.properties.selectUsing",
+                               "Please provide an expression", SeverityLevelEnum.Error))
+
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
