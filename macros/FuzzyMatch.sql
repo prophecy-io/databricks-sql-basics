@@ -32,21 +32,21 @@
         {%- for col in columns -%}
             {%- if key == 'custom' -%}
                 {# For custom matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(" ~ col ~ "::string, '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- elif key == 'name' -%}
                 {# For name matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(" ~ col ~ "::string, '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- elif key == 'address' -%}
                 {# For address matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(" ~ col ~ "::string, '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- else -%}
-                {%- set column_value_expr = col ~ "::string" -%}
+                {%- set column_value_expr = "CAST(" ~ col ~ " AS STRING)" -%}
             {%- endif -%}
 
             {%- if mode == 'PURGE' -%}
-                {%- set select_stmt = "select " ~ recordIdCol ~ "::string as record_id, upper('" ~ col ~ "') as column_name, " ~ column_value_expr ~ " as column_value, '" ~ func_name ~ "' as function_name from " ~ relation -%}
+                {%- set select_stmt = "select CAST(" ~ recordIdCol ~ " AS STRING) as record_id, upper('" ~ col ~ "') as column_name, " ~ column_value_expr ~ " as column_value, '" ~ func_name ~ "' as function_name from " ~ relation -%}
             {%- elif mode == 'MERGE' -%}
-                {%- set select_stmt = "select " ~ recordIdCol ~ "::string as record_id, " ~ sourceIdCol ~ "::string as source_id, upper('" ~ col ~ "') as column_name, " ~ column_value_expr ~ " as column_value, '" ~ func_name ~ "' as function_name from " ~ relation -%}
+                {%- set select_stmt = "select CAST(" ~ recordIdCol ~ " AS STRING) as record_id, CAST(" ~ sourceIdCol ~ " AS STRING) as source_id , upper('" ~ col ~ "') as column_name, " ~ column_value_expr ~ " as column_value, '" ~ func_name ~ "' as function_name from " ~ relation -%}
             {%- endif -%}
 
             {%- do selects.append(select_stmt) -%}
