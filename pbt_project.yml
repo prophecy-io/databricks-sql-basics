@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.5.dev2
+version: 0.0.5.dev3
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
@@ -114,6 +114,28 @@ sqlMacros:
     - .prophecy/ide/macros/UnionByName.json
     - macros/macros.yml
     - gems/UnionByName.py
+    createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/UnionByName:
+    name: JSONParse
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/JSONParse.sql
+      - .prophecy/ide/macros/JSONParse.json
+      - macros/macros.yml
+      - gems/JSONParse.py
+    createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/UnionByName:
+    name: XMLParse
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/XMLParse.sql
+      - .prophecy/ide/macros/XMLParse.json
+      - macros/macros.yml
+      - gems/XMLParse.py
     createdAt: '2024-11-28 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
