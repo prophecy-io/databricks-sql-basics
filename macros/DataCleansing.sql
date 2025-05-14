@@ -126,7 +126,7 @@
 
 
             {{ log("Appending transformed column expression", info=True) }}
-            {%- set col_expr = col_expr ~ "::" ~ col_type_map.get(col_name) -%}
+            {%- set col_expr = "CAST(" ~ col_expr ~ " AS " ~ col_type_map.get(col_name) ~ ")" -%}
             {%- do columns_to_select.append(col_expr ~ ' AS ' ~ col_name ~ '') -%}
         {%- endfor -%}
 

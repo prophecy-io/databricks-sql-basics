@@ -66,7 +66,7 @@ class XMLParse(MacroSpec):
       <zip>12345</zip>
     </address>
   </person>
-</root>}""")
+</root>""")
         return Dialog("ColumnParser").addElement(
             ColumnsLayout(gap="1rem", height="100%")
                 .addColumn(Ports(), "content")
