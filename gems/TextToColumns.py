@@ -227,7 +227,7 @@ class TextToColumns(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the newState's state and return the new state
-        relation_name = self.get_relation_names(component, context)
+        relation_name = self.get_relation_names(newState, context)
         return (replace(newState, properties=replace(newState.properties, relation_name=relation_name)))
 
     def apply(self, props: TextToColumnsProperties) -> str:
