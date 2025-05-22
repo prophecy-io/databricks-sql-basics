@@ -198,3 +198,16 @@ macros:
       type: "value"
       description: "{\"ProphecyType\": \"value\"}"
   macroType: "query"
+- name: "UnionByName"
+  arguments:
+    - name: "relation_name"
+      type: "value"
+      description: "{\"ProphecyType\": \"value\"}"
+    - name: "schemas"
+      type: "value"
+      description: "{\"ProphecyType\": \"value\"}"
+    - name: "missingColumnOps"
+      type: "value"
+      description: "{\"ProphecyType\": \"value\"}"
+  macroType: "query"
+
