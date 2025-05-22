@@ -1,26 +1,29 @@
-from dataclasses import dataclass
-import dataclasses
-import json
+from dataclasses import dataclass, field
+import dataclasses, json
+from typing import List
 
-from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
 
 class UnionByName(MacroSpec):
     name: str = "UnionByName"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "sql_gem_builder_demos"
     category: str = "Join/Split"
-    minNumOfInputPorts: int = 2
+    minNumOfInputPorts: int = 2          # you can still add more ports in the UI
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # 1.  Properties
+    # ──────────────────────────────────────────────────────────────────────────
     @dataclass(frozen=True)
     class UnionByNameProperties(MacroProperties):
-        # properties for the component with default values
-        relation_name: List[str] = field(default_factory=list) 
-        firstSchema: str = ''
-        secondSchema: str = ''
-        missingColumnOps: str = "nameBasedUnionOperation"
+        relation_name: List[str] = field(default_factory=list)   # labels of upstream nodes
+        schemas: List[str]       = field(default_factory=list)   # JSON strings, one per port
+        missingColumnOps: str    = "nameBasedUnionOperation"
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # 2.  Helper: upstream labels
+    # ──────────────────────────────────────────────────────────────────────────
     def get_relation_names(self,component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
@@ -30,92 +33,105 @@ class UnionByName(MacroSpec):
                     upstreamNodeId = connection.source
                     upstreamNode = context.graph.nodes.get(upstreamNodeId)
             all_upstream_nodes.append(upstreamNode)
-        
+
         relation_name = []
         for upstream_node in all_upstream_nodes:
             if upstream_node is None or upstream_node.label is None:
                 relation_name.append("")
             else:
                 relation_name.append(upstream_node.label)
-        
+
         return relation_name
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # 3.  UI – unchanged except new property binding
+    # ──────────────────────────────────────────────────────────────────────────
     def dialog(self) -> Dialog:
-        return Dialog("Macro").addElement(
-            ColumnsLayout(gap="1rem", height="100%")
-            .addColumn(
-                Ports(allowInputAddOrDelete=True),
-                "content"
-            )
-            .addColumn(   
+        return (
+            Dialog("Macro")
+                .addElement(
+                ColumnsLayout(gap="1rem", height="100%")
+                    .addColumn(Ports(allowInputAddOrDelete=True), "content")
+                    .addColumn(
                     StackLayout()
-                    .addElement(
+                        .addElement(
                         RadioGroup("")
-                        .addOption(
+                            .addOption(
                             "Union By Name (No Missing Column)",
                             "nameBasedUnionOperation",
                             ("UnionAll"),
-                            ("Union of two DataFrames with same columns in different order")
+                            ("Union of DataFrames with identical column sets")
                         )
-                        .addOption(
+                            .addOption(
                             "Union By Name (Allow Missing Columns)",
                             "allowMissingColumns",
                             ("UnionAll"),
-                            ("Lets you safely combine two Dataframes by matching column names and filling in missing ones with nulls")
-                        )                                             
-                        .setOptionType("button")
-                        .setVariant("large")
-                        .setButtonStyle("solid")
-                        .bindProperty("missingColumnOps")                        
+                            ("Aligns by name; fills missing columns with NULLs")
+                        )
+                            .setOptionType("button")
+                            .setVariant("large")
+                            .setButtonStyle("solid")
+                            .bindProperty("missingColumnOps")
                     )
                 )
+            )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         diagnostics = super(UnionByName, self).validate(context, component)
         return diagnostics
 
-    def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
-        # Handle changes in the newState's state and return the new state
-        relation_name = self.get_relation_names(newState,context)
-        firstSchema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        secondSchema = json.loads(str(newState.ports.inputs[1].schema).replace("'", '"'))
+    # ──────────────────────────────────────────────────────────────────────────
+    # 4.  Capture schemas / relation names when graph changes
+    # ──────────────────────────────────────────────────────────────────────────
+    def _extract_schemas(self, component: Component):
+        """Return list[str] – one compact JSON blob per input port."""
+        schema_blobs = []
+        for in_port in component.ports.inputs:
+            raw_schema = json.loads(str(in_port.schema).replace("'", '"'))
+            fields_arr = [
+                {"name": f["name"], "dataType": f["dataType"]["type"]}
+                for f in raw_schema["fields"]
+            ]
+            schema_blobs.append(json.dumps(fields_arr))
+        return schema_blobs
 
-        firstSchemafieldsArray = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in firstSchema["fields"]]
-        secondSchemafieldsArray = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in secondSchema["fields"]]
-
-        newProperties = dataclasses.replace(
-            newState.properties, 
-            firstSchema=json.dumps(firstSchemafieldsArray),
-            secondSchema=json.dumps(secondSchemafieldsArray),
-            relation_name=relation_name
+    def onChange(self, context: SqlContext, oldState: Component, newState: Component):
+        new_props = dataclasses.replace(
+            newState.properties,
+            relation_name=self.get_relation_names(newState, context),
+            schemas=self._extract_schemas(newState)
         )
-        return newState.bindProperties(newProperties)        
+        return newState.bindProperties(new_props)
 
+    def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
+        diagnostics = super(UnionByName, self).validate(context, component)
+        return diagnostics
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 5.  dbt-macro call generator
+    # ──────────────────────────────────────────────────────────────────────────
     def apply(self, props: UnionByNameProperties) -> str:
-        # You can now access self.relation_name here
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        
-        # Get the Single Table Name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
-        arguments = [
-            "'" + table_name + "'",
-            props.firstSchema,
-            props.secondSchema,
-            "'" + props.missingColumnOps + "'"
-        ]
-        non_empty_param = ",".join([param for param in arguments if param != ''])
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        #   argument #1 – ALL table names in one comma-sep string  (macro can handle str or list)
+        relation_arg = "'" + ",".join(str(r) for r in props.relation_name) + "'"
 
+        #   argument #2 – JSON list of all schema blobs
+        schemas_arg = "[" + ",".join(props.schemas) + "]"
+
+        call = f"{{{{ {resolved_macro_name}({relation_arg}, {schemas_arg}, '{props.missingColumnOps}') }}}}"
+        return call
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 6.  Prophecy (de)serialise component properties
+    # ──────────────────────────────────────────────────────────────────────────
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
-        print(f"The name of the parametersMap is {parametersMap}")
+        pm = self.convertToParameterMap(properties.parameters)
         return UnionByName.UnionByNameProperties(
-            relation_name=parametersMap.get('relation_name'),
-            firstSchema=parametersMap.get('firstSchema'),
-            secondSchema=parametersMap.get('secondSchema'),
-            missingColumnOps=parametersMap.get('missingColumnOps')
+            relation_name=json.loads(pm.get("relation_name", "[]")),
+            schemas=json.loads(pm.get("schemas", "[]")),
+            missingColumnOps=pm.get("missingColumnOps", "nameBasedUnionOperation"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -123,26 +139,19 @@ class UnionByName(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("firstSchema", properties.firstSchema),
-                MacroParameter("secondSchema", properties.secondSchema),
-                MacroParameter("missingColumnOps", properties.missingColumnOps)
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("schemas",       json.dumps(properties.schemas)),
+                MacroParameter("missingColumnOps", properties.missingColumnOps),
             ],
         )
 
+    # ──────────────────────────────────────────────────────────────────────────
+    # 7.  When user renames upstream nodes, refresh port slug
+    # ──────────────────────────────────────────────────────────────────────────
     def updateInputPortSlug(self, component: Component, context: SqlContext):
-
-        relation_name = self.get_relation_names(component,context)
-        firstSchema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        secondSchema = json.loads(str(component.ports.inputs[1].schema).replace("'", '"'))
-
-        firstSchemafieldsArray = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in firstSchema["fields"]]
-        secondSchemafieldsArray = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in secondSchema["fields"]]
-
-        newProperties = dataclasses.replace(
-            component.properties, 
-            firstSchema=json.dumps(firstSchemafieldsArray),
-            secondSchema=json.dumps(secondSchemafieldsArray),
-            relation_name=relation_name
+        new_props = dataclasses.replace(
+            component.properties,
+            relation_name=self.get_relation_names(component, context),
+            schemas=self._extract_schemas(component)
         )
-        return component.bindProperties(newProperties)
+        return component.bindProperties(new_props)
