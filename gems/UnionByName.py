@@ -10,20 +10,15 @@ class UnionByName(MacroSpec):
     name: str = "UnionByName"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Join/Split"
-    minNumOfInputPorts: int = 2          # you can still add more ports in the UI
+    minNumOfInputPorts: int = 2
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 1.  Properties
-    # ──────────────────────────────────────────────────────────────────────────
     @dataclass(frozen=True)
     class UnionByNameProperties(MacroProperties):
         relation_name: List[str] = field(default_factory=list)   # labels of upstream nodes
         schemas: List[str]       = field(default_factory=list)   # JSON strings, one per port
         missingColumnOps: str    = "nameBasedUnionOperation"
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 2.  Helper: upstream labels
-    # ──────────────────────────────────────────────────────────────────────────
+
     def get_relation_names(self,component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
@@ -43,9 +38,7 @@ class UnionByName(MacroSpec):
 
         return relation_name
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 3.  UI – unchanged except new property binding
-    # ──────────────────────────────────────────────────────────────────────────
+
     def dialog(self) -> Dialog:
         return (
             Dialog("Macro")
@@ -81,9 +74,7 @@ class UnionByName(MacroSpec):
         diagnostics = super(UnionByName, self).validate(context, component)
         return diagnostics
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 4.  Capture schemas / relation names when graph changes
-    # ──────────────────────────────────────────────────────────────────────────
+
     def _extract_schemas(self, component: Component):
         """Return list[str] – one compact JSON blob per input port."""
         schema_blobs = []
@@ -108,9 +99,7 @@ class UnionByName(MacroSpec):
         diagnostics = super(UnionByName, self).validate(context, component)
         return diagnostics
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 5.  dbt-macro call generator
-    # ──────────────────────────────────────────────────────────────────────────
+
     def apply(self, props: UnionByNameProperties) -> str:
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
@@ -123,9 +112,7 @@ class UnionByName(MacroSpec):
         call = f"{{{{ {resolved_macro_name}({relation_arg}, {schemas_arg}, '{props.missingColumnOps}') }}}}"
         return call
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 6.  Prophecy (de)serialise component properties
-    # ──────────────────────────────────────────────────────────────────────────
+
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         pm = self.convertToParameterMap(properties.parameters)
         return UnionByName.UnionByNameProperties(
@@ -145,9 +132,7 @@ class UnionByName(MacroSpec):
             ],
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # 7.  When user renames upstream nodes, refresh port slug
-    # ──────────────────────────────────────────────────────────────────────────
+
     def updateInputPortSlug(self, component: Component, context: SqlContext):
         new_props = dataclasses.replace(
             component.properties,
