@@ -225,7 +225,7 @@ class DataCleansing(MacroSpec):
 
         if len(component.properties.columnNames) > 0 and component.properties.schema != '':
             col_list = [col_name.upper() for col_name in component.properties.columnNames]
-            col_list_schema =[col_name.upper() for col_name in json.loads(component.properties.schema).keys()]
+            col_list_schema =[col_name.upper() for col_name in json.loads(component.properties.schema)[0].keys()]
             missingKeyColumns = [col for col in col_list if
                                  col not in col_list_schema]
             if missingKeyColumns:
