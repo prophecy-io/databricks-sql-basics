@@ -223,14 +223,12 @@ class DataCleansing(MacroSpec):
                 Diagnostic("component.properties.removeRowNullAllCols",
                            "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
 
-        if len(component.properties.columnNames) > 0 and component.properties.schema != '':
-            col_list = [col_name.upper() for col_name in component.properties.columnNames]
-            col_list_schema = [col_name['name'].upper() for col_name in json.loads(component.properties.schema)]
-            missingKeyColumns = [col for col in col_list if
-                                 col not in col_list_schema]
+        if len(component.properties.columnNames) > 0 :
+            missingKeyColumns = [col for col in component.properties.columnNames if
+                                 col not in component.properties.schema]
             if missingKeyColumns:
                 diagnostics.append(
-                    Diagnostic("component.properties.columnNames", f"Selected column's {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
                 )
                  
         if component.properties.replaceNullDateFields and not self.is_valid_date(component.properties.replaceNullDateWith, "%Y-%m-%d"):
@@ -276,7 +274,7 @@ class DataCleansing(MacroSpec):
             "'" + table_name + "'",
             props.schema,
             "'" + props.modifyCase + "'",
-            str([col_name.upper() for col_name in props.columnNames]),
+            str(props.columnNames),
             str(props.replaceNullTextFields).lower(),
             "'" + str(props.replaceNullTextWith) + "'",
             str(props.replaceNullForNumericFields).lower(),

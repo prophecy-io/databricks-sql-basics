@@ -21,7 +21,7 @@
         {%- set relations = relation_names | list -%}
     {%- endif -%}
 
-    {# 2. For each schema capture an upper-cased column list #}
+    {# 2. For each schema capture column list #}
     {%- set columns_per_relation = [] -%}
     {%- for schema_blob in schemas -%}
         {%- if schema_blob is string -%}
@@ -32,7 +32,7 @@
 
         {%- set col_list = [] -%}
         {%- for f in parsed -%}
-            {%- do col_list.append(f.name | upper) -%}
+            {%- do col_list.append(f.name) -%}
         {%- endfor -%}
         {%- do columns_per_relation.append(col_list) -%}
     {%- endfor -%}
