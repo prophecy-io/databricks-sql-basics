@@ -230,7 +230,7 @@ class DataCleansing(MacroSpec):
                                  col not in col_list_schema]
             if missingKeyColumns:
                 diagnostics.append(
-                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                    Diagnostic("component.properties.columnNames", f"Selected column's {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
                 )
                  
         if component.properties.replaceNullDateFields and not self.is_valid_date(component.properties.replaceNullDateWith, "%Y-%m-%d"):
