@@ -276,7 +276,7 @@ class DataCleansing(MacroSpec):
             "'" + table_name + "'",
             props.schema,
             "'" + props.modifyCase + "'",
-            str(props.columnNames),
+            str([col_name.upper() for col_name in props.columnNames]),
             str(props.replaceNullTextFields).lower(),
             "'" + str(props.replaceNullTextWith) + "'",
             str(props.replaceNullForNumericFields).lower(),
