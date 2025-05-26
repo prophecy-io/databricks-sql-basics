@@ -1,86 +1,102 @@
-{%- macro UnionByName(
-    relation_name,
-    firstSchema,
-    secondSchema,
-    missingColumnOps
-) -%}
+{# ------------------------------------------------------------------
+   UnionByName
+   Parameters
+     relation_names   – list OR comma-separated string of relations
+     schemas          – list of schema JSON blobs or already-parsed dicts
+     missingColumnOps – 'allowMissingColumns'   (default)
+                        'nameBasedUnionOperation'
+   ------------------------------------------------------------------ #}
 
-    {# Split relation_name into two relation identifiers #}
-    {%- set relations = relation_name.split(',') -%}
-    {%- set first_relation = relations[0] | trim -%}
-    {%- set second_relation = relations[1] | trim -%}
+{% macro UnionByName(relation_names,
+                     schemas,
+                     missingColumnOps='allowMissingColumns') -%}
 
-    {# Extract column names from each schema #}
-    {%- set first_columns = [] -%}
-    {%- for col in firstSchema -%}
-        {%- set _ = first_columns.append(col.name | upper) -%}
-    {%- endfor %}
-
-    {%- set second_columns = [] -%}
-    {%- for col in secondSchema -%}
-        {% set _ = second_columns.append(col.name | upper) %}
-    {%- endfor -%}
-
-    {# If nameBasedUnionOperation, ensure both schemas have exactly the same set of columns #}
-    {%- if missingColumnOps == 'nameBasedUnionOperation' -%}
-        {%- set diff_first = [] -%}
-        {%- for col in first_columns -%}
-            {%- if col not in second_columns -%}
-                {%- set _ = diff_first.append(col) -%}
-            {%- endif -%}
+    {# 1. Build a Python list called `relations` #}
+    {%- if relation_names is string -%}
+        {%- set relations = [] -%}
+        {%- for rel in relation_names.split(',') -%}
+            {%- do relations.append(rel | trim) -%}
         {%- endfor -%}
-        {%- set diff_second = [] -%}
-        {%- for col in second_columns -%}
-            {%- if col not in first_columns -%}
-                {%- set _ = diff_second.append(col) -%}
-            {%- endif -%}
-        {%- endfor -%}
-        {%- if diff_first | length > 0 or diff_second | length > 0 -%}
-            {{ exceptions.raise_compiler_error("Column mismatch in nameBasedUnionOperation. First schema columns: " ~ first_columns | join(', ') ~ " vs Second schema columns: " ~ second_columns | join(', ')) }}
-        {%- endif -%}
-    {%- endif -%}
-
-    {# Determine final column order #}
-    {%- if missingColumnOps == 'allowMissingColumns' -%}
-        {# Start with firstSchema columns, then add extra columns from secondSchema #}
-        {%- set final_columns = first_columns[:] -%}
-        {%- for col in second_columns -%}
-            {%- if col not in final_columns -%}
-                {%- set _ = final_columns.append(col) -%}
-            {%- endif -%}
-        {%- endfor -%}
-    {%- elif missingColumnOps == 'nameBasedUnionOperation' -%}
-        {# Both schemas have the same set, so use firstSchema order #}
-        {%- set final_columns = first_columns -%}
     {%- else -%}
-        {{ exceptions.raise_compiler_error("Unsupported missingColumnOps value: " ~ missingColumnOps) }}
+        {%- set relations = relation_names | list -%}
     {%- endif -%}
 
-    {# Build SELECT statement for the first relation #}
-    {%- set select_first = [] -%}
-    {%- for col in final_columns -%}
-        {%- if col in first_columns -%}
-            {%- set _ = select_first.append(col) -%}
+    {# 2. For each schema capture column list #}
+    {%- set columns_per_relation = [] -%}
+    {%- for schema_blob in schemas -%}
+        {%- if schema_blob is string -%}
+            {%- set parsed = fromjson(schema_blob) -%}
         {%- else -%}
-            {%- set _ = select_first.append("null as " ~ col) -%}
+            {%- set parsed = schema_blob -%}
         {%- endif -%}
+
+        {%- set col_list = [] -%}
+        {%- for f in parsed -%}
+            {%- do col_list.append(f.name) -%}
+        {%- endfor -%}
+        {%- do columns_per_relation.append(col_list) -%}
     {%- endfor -%}
 
-    {# Build SELECT statement for the second relation #}
-    {%- set select_second = [] -%}
-    {%- for col in final_columns -%}
-        {%- if col in second_columns -%}
-            {%- set _ = select_second.append(col) -%}
-        {%- else -%}
-            {%- set _ = select_second.append("null as " ~ col) -%}
-        {%- endif -%}
+    {# 3. Decide the final column set and validate when required #}
+    {%- set final_columns = columns_per_relation[0] | list -%}
+
+    {%- if missingColumnOps == 'allowMissingColumns' -%}
+        {%- for other_cols in columns_per_relation[1:] -%}
+            {%- for c in other_cols if c not in final_columns -%}
+                {%- do final_columns.append(c) -%}
+            {%- endfor -%}
+        {%- endfor -%}
+
+    {%- elif missingColumnOps == 'nameBasedUnionOperation' -%}
+        {%- for idx in range(1, relations | length) -%}
+            {%- set current = columns_per_relation[idx] -%}
+            {%- set extra   = [] -%}
+            {%- set missing = [] -%}
+
+            {%- for c in current if c not in final_columns -%}
+                {%- do extra.append(c) -%}
+            {%- endfor -%}
+            {%- for c in final_columns if c not in current -%}
+                {%- do missing.append(c) -%}
+            {%- endfor -%}
+
+            {%- if extra | length > 0 or missing | length > 0 -%}
+                {{ exceptions.raise_compiler_error(
+                    "Column mismatch between first relation and relation "
+                    ~ (idx + 1) ~ ". Extra: " ~ extra | join(', ')
+                    ~ " | Missing: " ~ missing | join(', ')
+                ) }}
+            {%- endif -%}
+        {%- endfor -%}
+
+    {%- else -%}
+        {{ exceptions.raise_compiler_error(
+            "Unsupported missingColumnOps value: " ~ missingColumnOps) }}
+    {%- endif -%}
+
+    {# 4. Build SELECT for each relation (insert NULLs for missing cols) #}
+    {%- set selects = [] -%}
+    {%- for idx in range(relations | length) -%}
+        {%- set cur_cols = columns_per_relation[idx] -%}
+        {%- set parts = [] -%}
+
+        {%- for col in final_columns -%}
+            {%- if col in cur_cols -%}
+                {%- do parts.append(col) -%}
+            {%- else -%}
+                {%- do parts.append("null as " ~ col) -%}
+            {%- endif -%}
+        {%- endfor -%}
+
+        {%- do selects.append(
+              "select " ~ parts | join(', ') ~ " from " ~ relations[idx]) -%}
     {%- endfor -%}
 
-    {# Return the final union query #}
+    {# 5. Union-all them together #}
     with union_query as (
-        select {{ select_first | join(', ') }} from {{ first_relation }}
-        union all
-        select {{ select_second | join(', ') }} from {{ second_relation }}
+        {{ selects | join('\nunion all\n') }}
     )
-    select * from union_query
+    select *
+    from union_query
+
 {%- endmacro %}
