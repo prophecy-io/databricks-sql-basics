@@ -224,8 +224,10 @@ class DataCleansing(MacroSpec):
                            "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
 
         if len(component.properties.columnNames) > 0 :
-            missingKeyColumns = [col for col in component.properties.columnNames if
-                                 col not in component.properties.schema]
+            col_list = [col_name.upper() for col_name in component.properties.columnNames]
+            col_list_schema =[col_name.upper() for col_name in component.properties.schema]
+            missingKeyColumns = [col for col in col_list if
+                                 col not in col_list_schema]
             if missingKeyColumns:
                 diagnostics.append(
                     Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
