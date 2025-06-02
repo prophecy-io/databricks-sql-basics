@@ -1,11 +1,11 @@
 
-from dataclasses import dataclass
 import dataclasses
+import json
+from dataclasses import dataclass
 
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-import json
 
 
 class DynamicSelect(MacroSpec):
@@ -226,8 +226,8 @@ class DynamicSelect(MacroSpec):
         targetTypes = props.targetTypes
         selectUsing = f"'{props.selectUsing}'"
         customExpression = "\"" + props.customExpression + "\""
-        non_empty_param = ",".join(x for x in [relation, schema, targetTypes, selectUsing, customExpression] if x is not None and len(x) != 0)
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        params = ",".join(x for x in [relation, schema, targetTypes, selectUsing, customExpression])
+        return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)

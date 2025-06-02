@@ -1,11 +1,9 @@
 from dataclasses import dataclass
-import dataclasses
-import json
 
-from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
+
 
 class XMLParse(MacroSpec):
     name: str = "XMLParse"
@@ -175,8 +173,8 @@ class XMLParse(MacroSpec):
             "'" + sampleRecord + "'",
             "'" + sampleSchema + "'"
         ]
-        non_empty_param = ",".join([param for param in arguments if param != ''])
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        params = ",".join([param for param in arguments])
+        return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
