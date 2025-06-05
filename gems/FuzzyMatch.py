@@ -1,5 +1,6 @@
 import dataclasses
 from collections import defaultdict
+
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
@@ -250,8 +251,8 @@ class FuzzyMatch(MacroSpec):
             str(props.matchThresholdPercentage),
             str(props.includeSimilarityScore).lower()
         ]
-        non_empty_param = ",".join([param for param in arguments if param != ''])
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        params = ",".join([param for param in arguments])
+        return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation

@@ -1,6 +1,6 @@
-from dataclasses import dataclass
 import dataclasses
 import json
+from dataclasses import dataclass
 
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
@@ -207,8 +207,8 @@ class MultiColumnEdit(MacroSpec):
             "'" + props.prefixSuffixOption + "'",
             "'" + props.prefixSuffixToBeAdded + "'"
         ]
-        non_empty_param = ",".join([param for param in arguments if param != ''])
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        params = ",".join([param for param in arguments])
+        return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # Load the component's state given default macro property representation

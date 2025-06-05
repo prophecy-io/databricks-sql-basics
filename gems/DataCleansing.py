@@ -1,8 +1,9 @@
 import dataclasses
+import datetime as dt
 import json
+
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-import datetime as dt
 
 
 class DataCleansing(MacroSpec):
@@ -292,8 +293,8 @@ class DataCleansing(MacroSpec):
             "'" + str(props.replaceNullTimeWith) + "'" 
         ]
 
-        non_empty_param = ",".join([param for param in arguments if param != ''])
-        return f'{{{{ {resolved_macro_name}({non_empty_param}) }}}}'
+        params = ",".join([param for param in arguments])
+        return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # Load the component's state given default macro property representation
