@@ -18,6 +18,7 @@ class ToDo(MacroSpec):
         relation_name: List[str] = field(default_factory=list)
         error_string: str = ''
         code_string: str = ''
+        diag_message: str = ''
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -42,7 +43,7 @@ class ToDo(MacroSpec):
         return Dialog("ToDo").addElement(
             ColumnsLayout(gap="1rem", height="100%")
                 .addColumn(
-                Ports(allowInputAddOrDelete=True, allowOutputAddOrDelete=True),
+                Ports(allowInputAddOrDelete=True, allowCustomOutputSchema=True, defaultCustomOutputSchema=True),
                 "content"
             )
                 .addColumn(
@@ -59,7 +60,12 @@ class ToDo(MacroSpec):
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
-        return super().validate(context,component)
+        diagnostics =  super().validate(context,component)
+        if component.properties.diag_message != '':
+            diagnostics.append(
+                Diagnostic("component.properties.columnName", component.properties.diag_message,
+                           SeverityLevelEnum.Error))
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
@@ -94,8 +100,9 @@ class ToDo(MacroSpec):
         return DataCleansing.DataCleansingProperties(
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
-            error=parametersMap.get('error_string'),
-            code=parametersMap.get('code_string')
+            error_string=parametersMap.get('error_string'),
+            code_string=parametersMap.get('code_string'),
+            diag_message=parametersMap.get('diag_message')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -107,7 +114,8 @@ class ToDo(MacroSpec):
                 MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("error_string", properties.error_string),
-                MacroParameter("code_string", properties.code_string)
+                MacroParameter("code_string", properties.code_string),
+                MacroParameter("diag_message", properties.diag_message)
             ],
         )
 
