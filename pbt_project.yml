@@ -137,6 +137,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/XMLParse.py
     createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/ToDo:
+    name: ToDo
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/ToDo.sql
+      - .prophecy/ide/macros/ToDo.json
+      - macros/macros.yml
+      - gems/ToDo.py
+    createdAt: '2025-06-09 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
