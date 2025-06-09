@@ -222,7 +222,7 @@ macros:
       type: "value"
       description: "{\"ProphecyType\": \"value\"}"
     - name: "code_string"
-        type: "value"
-        description: "{\"ProphecyType\": \"value\"}"
+      type: "value"
+      description: "{\"ProphecyType\": \"value\"}"
   macroType: "query"
 
