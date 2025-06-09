@@ -61,9 +61,9 @@ class ToDo(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         diagnostics =  super().validate(context,component)
-        if component.properties.diag_message != '':
+        if component.properties.error_string != '':
             diagnostics.append(
-                Diagnostic("component.properties.columnName", component.properties.diag_message,
+                Diagnostic("component.properties.error_string", component.properties.error_string,
                            SeverityLevelEnum.Error))
         return diagnostics
 
