@@ -8,7 +8,7 @@ from prophecy.cb.ui.uispec import *
 
 class ToDo(MacroSpec):
     name: str = "ToDo"
-    projectName: str = "abhinav_orchestarate"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Custom"
 
 
@@ -42,7 +42,7 @@ class ToDo(MacroSpec):
         return Dialog("ToDo").addElement(
             ColumnsLayout(gap="1rem", height="100%")
                 .addColumn(
-                Ports(allowInputAddOrDelete=True),
+                Ports(allowInputAddOrDelete=True, allowOutputAddOrDelete=True),
                 "content"
             )
                 .addColumn(
