@@ -94,8 +94,9 @@ class ToDo(MacroSpec):
 
     def apply(self, props: ToDoProperties) -> str:
         resolved_macro_name = f"{self.projectName}.{self.name}"
+        diag_message: str = props.diag_message if props.diag_message is not None else "No diaganostic provided."
         arguments = [
-            "'" + props.diag_message + "'"
+            "'" + diag_message + "'"
         ]
 
         params = ",".join([param for param in arguments])
