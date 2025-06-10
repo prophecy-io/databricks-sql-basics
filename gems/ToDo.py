@@ -51,7 +51,7 @@ class ToDo(MacroSpec):
                             .addElement(
                             StackLayout(height="100%")
                                 .addElement(TitleElement("Message to highlight to user"))
-                                .addElement(Editor(height="10bh").bindPlaceholder("Please implement the todo logic.").bindProperty("diag_message"))
+                                .addElement(TextBox("").bindPlaceholder("Please implement the todo logic.").bindProperty("diag_message"))
                         )
                     ))
                     .addElement(StepContainer()
@@ -60,7 +60,7 @@ class ToDo(MacroSpec):
                             .addElement(
                             StackLayout()
                                 .addElement(TitleElement("Error Message"))
-                                .addElement(Editor(height="10bh").bindPlaceholder("Provide your error message here.").bindProperty("error_string"))
+                                .addElement(TextBox("").bindPlaceholder("Provide your error message here.").bindProperty("error_string"))
                         )
                     ))
                     .addElement(StepContainer()
@@ -69,7 +69,7 @@ class ToDo(MacroSpec):
                             .addElement(
                             StackLayout()
                                 .addElement(TitleElement("Helper code / text"))
-                                .addElement(Editor(height="70bh").bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
+                                .addElement(TextArea("", 20).bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
                         )
                     ))
             )
