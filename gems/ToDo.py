@@ -40,7 +40,7 @@ class ToDo(MacroSpec):
         return Dialog("ToDo").addElement(
             ColumnsLayout(gap="1rem", height="100%")
                 .addColumn(
-                Ports(allowInputAddOrDelete=True, allowCustomOutputSchema=True, defaultCustomOutputSchema=True),
+                Ports(allowInputAddOrDelete=True, allowCustomOutputSchema=True),
                 "content"
             )
                 .addColumn(
