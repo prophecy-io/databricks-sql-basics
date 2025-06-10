@@ -1,5 +1,4 @@
 import dataclasses
-import datetime as dt
 import json
 
 from prophecy.cb.sql.MacroBuilderBase import *
@@ -11,14 +10,12 @@ class ToDo(MacroSpec):
     projectName: str = "DatabricksSqlBasics"
     category: str = "Custom"
 
-
     @dataclass(frozen=True)
     class ToDoProperties(MacroProperties):
-        schema: str = ''
         relation_name: List[str] = field(default_factory=list)
-        error_string: str = ''
-        code_string: str = ''
-        diag_message: str = ''
+        error_string: Optional[str] = None
+        code_string: Optional[str] = None
+        diag_message: Optional[str] = None
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -47,48 +44,58 @@ class ToDo(MacroSpec):
                 "content"
             )
                 .addColumn(
-                StackLayout(height="100%").addElement(
-                    StackLayout()
-                        .addElement(TitleElement("Error"))
-                        .addElement(Editor(height="10bh").bindProperty("error_string"))
-                ).addElement(
-                    StackLayout()
-                        .addElement(TitleElement("Code"))
-                        .addElement(Editor(height="70bh").bindProperty("code_string"))
-                )
+                StackLayout(height="100%")
+                    .addElement(StepContainer()
+                        .addElement(
+                        Step()
+                            .addElement(
+                            StackLayout(height="100%")
+                                .addElement(TitleElement("Message to highlight to user"))
+                                .addElement(Editor(height="10bh").bindPlaceholder("Please implement the todo logic.").bindProperty("diag_message"))
+                        )
+                    ))
+                    .addElement(StepContainer()
+                        .addElement(
+                        Step()
+                            .addElement(
+                            StackLayout()
+                                .addElement(TitleElement("Error Message"))
+                                .addElement(Editor(height="10bh").bindPlaceholder("Provide your error message here.").bindProperty("error_string"))
+                        )
+                    ))
+                    .addElement(StepContainer()
+                        .addElement(
+                        Step()
+                            .addElement(
+                            StackLayout()
+                                .addElement(TitleElement("Helper code / text"))
+                                .addElement(Editor(height="70bh").bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
+                        )
+                    ))
             )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
-        diagnostics =  super().validate(context,component)
-        if component.properties.error_string != '':
+        diagnostics = super().validate(context, component)
+        if component.properties.diag_message is not None and component.properties.diag_message != '':
             diagnostics.append(
-                Diagnostic("component.properties.error_string", component.properties.error_string,
+                Diagnostic("component.properties.diag_message", component.properties.diag_message,
                            SeverityLevelEnum.Error))
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
-        schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
             newState.properties,
-            schema=json.dumps(fields_array),
             relation_name=relation_name
         )
         return newState.bindProperties(newProperties)
 
     def apply(self, props: ToDoProperties) -> str:
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
-        # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + table_name + "'",
-            props.schema,
-            "'" + props.error_string + "'",
-            "'" + props.code_string + "'"
+            "'" + props.diag_message + "'"
         ]
 
         params = ",".join([param for param in arguments])
@@ -98,10 +105,6 @@ class ToDo(MacroSpec):
         # Load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return DataCleansing.DataCleansingProperties(
-            relation_name=parametersMap.get('relation_name'),
-            schema=parametersMap.get('schema'),
-            error_string=parametersMap.get('error_string'),
-            code_string=parametersMap.get('code_string'),
             diag_message=parametersMap.get('diag_message')
         )
 
@@ -111,10 +114,6 @@ class ToDo(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema)),
-                MacroParameter("error_string", properties.error_string),
-                MacroParameter("code_string", properties.code_string),
                 MacroParameter("diag_message", properties.diag_message)
             ],
         )
@@ -130,5 +129,3 @@ class ToDo(MacroSpec):
             relation_name=relation_name
         )
         return component.bindProperties(newProperties)
-
-
