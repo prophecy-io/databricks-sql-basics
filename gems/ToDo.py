@@ -50,8 +50,8 @@ class ToDo(MacroSpec):
                         Step()
                             .addElement(
                             StackLayout(height="100%")
-                                .addElement(TitleElement("Message to highlight to user"))
-                                .addElement(TextBox("").bindPlaceholder("Please implement the todo logic.").bindProperty("diag_message"))
+                                .addElement(TitleElement("Highlight message"))
+                                .addElement(TextBox("").bindPlaceholder("To-Do logic not implemented yet. Please complete this feature.").bindProperty("diag_message"))
                         )
                     ))
                     .addElement(StepContainer()
@@ -59,8 +59,8 @@ class ToDo(MacroSpec):
                         Step()
                             .addElement(
                             StackLayout()
-                                .addElement(TitleElement("Error Message"))
-                                .addElement(TextBox("").bindPlaceholder("Provide your error message here.").bindProperty("error_string"))
+                                .addElement(TitleElement("Error message (Optional)"))
+                                .addElement(TextBox("").bindPlaceholder("Please enter error message here for reference.").bindProperty("error_string"))
                         )
                     ))
                     .addElement(StepContainer()
@@ -68,8 +68,8 @@ class ToDo(MacroSpec):
                         Step()
                             .addElement(
                             StackLayout()
-                                .addElement(TitleElement("Helper code / text"))
-                                .addElement(TextArea("", 15).bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
+                                .addElement(TitleElement("Helper code/text (Optional)"))
+                                .addElement(TextArea("", 12).bindPlaceholder("Paste sample code or helpful notes here for reference.").bindProperty("code_string"))
                         )
                     ))
             )
@@ -80,6 +80,10 @@ class ToDo(MacroSpec):
         if component.properties.diag_message is not None and component.properties.diag_message != '':
             diagnostics.append(
                 Diagnostic("component.properties.diag_message", component.properties.diag_message,
+                           SeverityLevelEnum.Error))
+        else:
+            diagnostics.append(
+                Diagnostic("component.properties.diag_message", "Message to highlight cannot be empty for todo gem.",
                            SeverityLevelEnum.Error))
         return diagnostics
 
