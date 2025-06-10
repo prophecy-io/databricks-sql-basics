@@ -83,7 +83,7 @@ class ToDo(MacroSpec):
                            SeverityLevelEnum.Error))
         else:
             diagnostics.append(
-                Diagnostic("component.properties.diag_message", "Message to highlight cannot be empty for todo gem.",
+                Diagnostic("component.properties.diag_message", "Highlight message field cannot be empty.",
                            SeverityLevelEnum.Error))
         return diagnostics
 
