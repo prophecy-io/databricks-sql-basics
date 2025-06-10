@@ -69,7 +69,7 @@ class ToDo(MacroSpec):
                             .addElement(
                             StackLayout()
                                 .addElement(TitleElement("Helper code / text"))
-                                .addElement(TextArea("", 20).bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
+                                .addElement(TextArea("", 15).bindPlaceholder("Provide helper code / text here.").bindProperty("code_string"))
                         )
                     ))
             )
@@ -94,9 +94,9 @@ class ToDo(MacroSpec):
 
     def apply(self, props: ToDoProperties) -> str:
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        diag_message: str = props.diag_message if props.diag_message is not None else "No diaganostic provided."
+        diagMessage: str = props.diag_message if props.diag_message is not None else "No diaganostic provided."
         arguments = [
-            "'" + diag_message + "'"
+            "'" + diagMessage + "'"
         ]
 
         params = ",".join([param for param in arguments])
@@ -120,13 +120,10 @@ class ToDo(MacroSpec):
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
-        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(component, context)
 
         newProperties = dataclasses.replace(
             component.properties,
-            schema=json.dumps(fields_array),
             relation_name=relation_name
         )
         return component.bindProperties(newProperties)
