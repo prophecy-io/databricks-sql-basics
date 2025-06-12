@@ -16,7 +16,7 @@ class UnionByName(MacroSpec):
     class UnionByNameProperties(MacroProperties):
         relation_name: List[str] = field(default_factory=list)   # labels of upstream nodes
         schemas: List[str]       = field(default_factory=list)   # JSON strings, one per port
-        missingColumnOps: str    = "nameBasedUnionOperation"
+        missingColumnOps: str    = "allowMissingColumns"
 
 
     def get_relation_names(self,component: Component, context: SqlContext):
