@@ -109,7 +109,7 @@ class ToDo(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # Load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        return DataCleansing.DataCleansingProperties(
+        return ToDo.ToDoProperties(
             diag_message=parametersMap.get('diag_message')
         )
 
