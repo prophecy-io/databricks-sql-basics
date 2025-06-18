@@ -9,14 +9,9 @@
 
   {%- set available_cols = [] -%}
   {%- if keyColumns and dataColumns and nameColumn | length > 0 and valueColumn | length > 0 -%}
-    {%- for col in dataColumns -%}
-      {%- if col in schema -%}
-        {%- do available_cols.append(col) -%}
-      {%- endif -%}
-    {%- endfor -%}
 
     {%- set union_queries = [] -%}
-    {%- for data_col in available_cols -%}
+    {%- for data_col in dataColumns -%}
       {%- set select_list = [] -%}
       {%- for key in keyColumns -%}
         {%- do select_list.append(key) -%}
