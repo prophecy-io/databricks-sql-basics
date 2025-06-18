@@ -148,6 +148,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/ToDo.py
     createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/GenerateRows:
+    name: GenerateRows
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/GenerateRows.sql
+      - .prophecy/ide/macros/GenerateRows.json
+      - macros/macros.yml
+      - gems/GenerateRows.py
+    createdAt: '2025-06-19 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
