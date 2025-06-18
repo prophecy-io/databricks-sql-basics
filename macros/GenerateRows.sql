@@ -1,37 +1,20 @@
 {# =============================================================================
     GenerateRows
     =============================================================================
-    Parameters (all strings)
+    Parameters (all values come in as strings)
     -----------------------------------------------------------------------------
-    1  relation_names : string | list | None
-         • '', '   ', or None  →  no input table
-         • 'schema.table'      →  single input table
-         • 'tbl1,tbl2'         →  comma-separated (⇢ error if >1 after cleaning)
+      1  relation_names : '' | 'schema.table' | 'tbl1,tbl2' | list | None
+           – '', None, or all-blank ⇒ no table (stand-alone sequence)
+           – exactly one non-blank  ⇒ cross-join per row
+           – >1                      ⇒ explicit error
 
-    2  new_field_name : string          -- output column name
-
-    3  start_expr     : string          -- literal or column/expression
-    4  end_expr       : string          -- literal or column/expression
-    5  step_expr      : string (default "1")
-
-    6  data_type      : string (default "int")
-         numeric types: int | integer | bigint | float | double | decimal
-         temporal    : date | timestamp
-
-    7  interval_unit  : string (default "day")
-         valid Spark interval units when data_type is date/timestamp
-
-    ---------------------------------------------------------------------------
-    Example (stand-alone ints 11,14,17,20,23)
-    -----------------------------------------
-    {{ GenerateRows(
-         relation_names = '',           -- no table
-         new_field_name = 'num',
-         start_expr     = '11',
-         end_expr       = '25',
-         step_expr      = '2',
-         data_type      = 'int'
-    ) }}
+      2  new_field_name : string         -- name of the generated column
+      3  start_expr     : string         -- literal or column/expression
+      4  end_expr       : string         -- literal or column/expression
+      5  step_expr      : string         -- literal or column/expression (default "1")
+      6  data_type      : string         -- numeric | date | timestamp    (default "int")
+      7  interval_unit  : string         -- Spark interval unit for temporal types
+                                           (default "day")
 ============================================================================= #}
 {% macro GenerateRows(
         relation_names = None,
@@ -42,63 +25,72 @@
         data_type      = "int",
         interval_unit  = "day"
     ) %}
-{%- set numeric_types = ["int","integer","bigint","float","double","decimal"] %}
+
+{%- set numeric_types = ["int","integer","bigint","float","double","decimal"] -%}
 
 {#----------------------------------------------------------------------------
-   NORMALISE relation_names  →  list `relations`
-   • Accepts None, string, or list/tuple
-   • Splits comma-separated strings
-   • Removes blanks & whitespace
+   0️⃣  Normalise relation_names  →  list `relations`
 ----------------------------------------------------------------------------#}
-{% set temp_list = [] %}
+{% set tmp = [] %}
 {% if relation_names is none %}
-    {# leave empty #}
-
+    {# nothing to do #}
 {% elif relation_names is string %}
-    {% set temp_list = relation_names.split(',') %}
-
+    {% for part in relation_names.split(',') %}
+        {% if part | trim != '' %}
+            {% do tmp.append(part | trim) %}
+        {% endif %}
+    {% endfor %}
 {% else %}
-    {# iterable: flatten & split comma-separated parts #}
     {% for item in relation_names | list %}
         {% if item is string %}
             {% for part in item.split(',') %}
-                {% do temp_list.append(part) %}
+                {% if part | trim != '' %}
+                    {% do tmp.append(part | trim) %}
+                {% endif %}
             {% endfor %}
-        {% else %}
-            {% do temp_list.append(item) %}
         {% endif %}
     {% endfor %}
 {% endif %}
+{% set relations = tmp %}
 
-{% set relations = [] %}
-{% for rel in temp_list %}
-    {% if rel | trim != '' %}
-        {% do relations.append(rel | trim) %}
-    {% endif %}
-{% endfor %}
-
-(   {# ----------------------------- open parenthesis ------------------------ #}
+(   {# ------------- OPEN PAREN so caller can SELECT * FROM (…) AS t ------------- #}
 
 {#----------------------------------------------------------------------------
-   BRANCH 1 : NO TABLE  --------------------------------------------------------
+   1️⃣  NO INPUT RELATION  ------------------------------------------------------
 ----------------------------------------------------------------------------#}
 {% if relations | length == 0 %}
 
+    {# ---------- numeric ----------------------------------------------------- #}
     {% if data_type in numeric_types %}
         SELECT explode(
                  sequence(
                      CAST({{ start_expr }} AS {{ data_type }}),
                      CAST({{ end_expr   }} AS {{ data_type }}),
-                     CAST({{ step_expr  }} AS {{ data_type }})
+                     /* ensure step sign matches direction */
+                     (CASE
+                          WHEN (CAST({{ step_expr }} AS {{ data_type }}) = 0)
+                               THEN 1    -- safety: avoid 0 step
+                          WHEN (CAST({{ start_expr }} AS {{ data_type }})
+                                >   CAST({{ end_expr }}   AS {{ data_type }}))
+                               THEN -ABS(CAST({{ step_expr }} AS {{ data_type }}))
+                          ELSE  ABS(CAST({{ step_expr }} AS {{ data_type }}))
+                      END)
                  )
                ) AS {{ new_field_name }}
 
+    {# ---------- dates / timestamps ----------------------------------------- #}
     {% elif data_type in ["date","timestamp"] %}
         SELECT explode(
                  sequence(
                      CAST({{ start_expr }} AS {{ data_type }}),
                      CAST({{ end_expr   }} AS {{ data_type }}),
-                     interval CAST({{ step_expr }} AS INT) {{ interval_unit }}
+                     interval
+                     (CASE
+                          WHEN (CAST({{ start_expr }} AS {{ data_type }}) >
+                                CAST({{ end_expr   }} AS {{ data_type }}))
+                               THEN -ABS(CAST({{ step_expr }} AS INT))
+                          ELSE  ABS(CAST({{ step_expr }} AS INT))
+                      END) {{ interval_unit }}
                  )
                ) AS {{ new_field_name }}
 
@@ -107,10 +99,10 @@
     {% endif %}
 
 {#----------------------------------------------------------------------------
-   BRANCH 2 : ONE TABLE  -------------------------------------------------------
+   2️⃣  EXACTLY ONE RELATION  ---------------------------------------------------
 ----------------------------------------------------------------------------#}
 {% elif relations | length == 1 %}
-    {%- set rel = relations[0] %}
+    {%- set rel = relations[0] -%}
 
     {% if data_type in numeric_types %}
         SELECT
@@ -121,7 +113,14 @@
             sequence(
                 CAST({{ start_expr }} AS {{ data_type }}),
                 CAST({{ end_expr   }} AS {{ data_type }}),
-                CAST({{ step_expr  }} AS {{ data_type }})
+                (CASE
+                     WHEN (CAST({{ step_expr }} AS {{ data_type }}) = 0)
+                          THEN 1
+                     WHEN (CAST({{ start_expr }} AS {{ data_type }})
+                           >   CAST({{ end_expr }}   AS {{ data_type }}))
+                          THEN -ABS(CAST({{ step_expr }} AS {{ data_type }}))
+                     ELSE  ABS(CAST({{ step_expr }} AS {{ data_type }}))
+                 END)
             )
         ) t AS seq_val
 
@@ -134,7 +133,13 @@
             sequence(
                 CAST({{ start_expr }} AS {{ data_type }}),
                 CAST({{ end_expr   }} AS {{ data_type }}),
-                interval CAST({{ step_expr }} AS INT) {{ interval_unit }}
+                interval
+                (CASE
+                     WHEN (CAST({{ start_expr }} AS {{ data_type }}) >
+                           CAST({{ end_expr   }} AS {{ data_type }}))
+                          THEN -ABS(CAST({{ step_expr }} AS INT))
+                     ELSE  ABS(CAST({{ step_expr }} AS INT))
+                 END) {{ interval_unit }}
             )
         ) t AS seq_val
 
@@ -143,12 +148,13 @@
     {% endif %}
 
 {#----------------------------------------------------------------------------
-   BRANCH 3 : >1 TABLES  -------------------------------------------------------
+   3️⃣  >1 RELATIONS  -----------------------------------------------------------
 ----------------------------------------------------------------------------#}
 {% else %}
     SELECT NULL AS {{ new_field_name }} WHERE FALSE
     /* Error: GenerateRows expects 0 or 1 relation,
               received {{ relations | length }} ({{ relations | join(', ') }}) */
 {% endif %}
-)   {# ----------------------------- close parenthesis ----------------------- #}
+
+)   {# ------------- CLOSE PAREN --------------------------------------------- #}
 {% endmacro %}
