@@ -14,9 +14,12 @@ class GenerateRows(MacroSpec):
     class GenerateRowsProperties(MacroProperties):
         relation_name: List[str] = field(default_factory=list)
         new_field_name: Optional[str] = None
-        start: Optional[str] = None
-        end: Optional[str] = None
-        step: Optional[str] = None
+        start_expr: Optional[str] = None
+        end_expr: Optional[str] = None
+        step_expr: Optional[str] = None
+        data_type: Optional[str] = None
+        interval_unit: Optional[str] = None
+
 
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
@@ -46,46 +49,17 @@ class GenerateRows(MacroSpec):
             )
                 .addColumn(
                 StackLayout(height="100%")
-                    .addElement(StepContainer()
-                    .addElement(
-                    Step()
-                        .addElement(
-                        StackLayout(height="100%")
-                            .addElement(TitleElement("Highlight message"))
-                            .addElement(TextBox("").bindPlaceholder("To-Do logic not implemented yet. Please complete this feature.").bindProperty("diag_message"))
-                    )
-                ))
-                    .addElement(StepContainer()
-                    .addElement(
-                    Step()
-                        .addElement(
-                        StackLayout()
-                            .addElement(TitleElement("Error message (Optional)"))
-                            .addElement(TextBox("").bindPlaceholder("Please enter error message here for reference.").bindProperty("error_string"))
-                    )
-                ))
-                    .addElement(StepContainer()
-                    .addElement(
-                    Step()
-                        .addElement(
-                        StackLayout()
-                            .addElement(TitleElement("Helper code/text (Optional)"))
-                            .addElement(TextArea("", 12).bindPlaceholder("Paste sample code or helpful notes here for reference.").bindProperty("code_string"))
-                    )
-                ))
+                    .addElement(TextBox("new_field_name").bindPlaceholder("""abc""").bindProperty("new_field_name"))
+                    .addElement(TextBox("start_expr").bindPlaceholder("""abc""").bindProperty("start_expr"))
+                    .addElement(TextBox("end_expr").bindPlaceholder("""abc""").bindProperty("end_expr"))
+                    .addElement(TextBox("step_expr").bindPlaceholder("""abc""").bindProperty("step_expr"))
+                    .addElement(TextBox("data_type").bindPlaceholder("""abc""").bindProperty("data_type"))
+                    .addElement(TextBox("interval_unit").bindPlaceholder("""abc""").bindProperty("interval_unit"))
             )
         )
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         diagnostics = super().validate(context, component)
-        if component.properties.diag_message is not None and component.properties.diag_message != '':
-            diagnostics.append(
-                Diagnostic("component.properties.diag_message", component.properties.diag_message,
-                           SeverityLevelEnum.Error))
-        else:
-            diagnostics.append(
-                Diagnostic("component.properties.diag_message", "Highlight message field cannot be empty.",
-                           SeverityLevelEnum.Error))
         return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
@@ -97,11 +71,20 @@ class GenerateRows(MacroSpec):
         )
         return newState.bindProperties(newProperties)
 
+
     def apply(self, props: GenerateRowsProperties) -> str:
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+
+        # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
-        diagMessage: str = props.diag_message if props.diag_message is not None else "No diaganostic provided."
         arguments = [
-            "'" + diagMessage + "'"
+            "'" + table_name + "'",
+            "'" + str(props.new_field_name) + "'",
+            "'" + str(props.start_expr) + "'",
+            "'" + str(props.end_expr) + "'",
+            "'" + str(props.step_expr) + "'",
+            "'" + str(props.data_type) + "'",
+            "'" + str(props.interval_unit) + "'"
         ]
 
         params = ",".join([param for param in arguments])
@@ -111,7 +94,14 @@ class GenerateRows(MacroSpec):
         # Load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return GenerateRows.GenerateRowsProperties(
-            diag_message=parametersMap.get('diag_message')
+            relation_name=parametersMap.get('relation_name'),
+            new_field_name=parametersMap.get('new_field_name'),
+            start_expr=parametersMap.get('start_expr'),
+            end_expr=parametersMap.get('end_expr'),
+            step_expr=parametersMap.get('step_expr'),
+            data_type=parametersMap.get('data_type'),
+            interval_unit=parametersMap.get('interval_unit')
+
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -120,7 +110,13 @@ class GenerateRows(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("diag_message", properties.diag_message)
+                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("new_field_name", properties.new_field_name),
+                MacroParameter("start_expr", properties.start_expr),
+                MacroParameter("end_expr", properties.end_expr),
+                MacroParameter("step_expr", properties.step_expr),
+                MacroParameter("data_type", properties.diag_message),
+                MacroParameter("interval_unit", properties.interval_unit)
             ],
         )
 
