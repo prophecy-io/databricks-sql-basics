@@ -127,7 +127,7 @@ class GenerateRows(MacroSpec):
                 MacroParameter("start_expr", properties.start_expr),
                 MacroParameter("end_expr", properties.end_expr),
                 MacroParameter("step_expr", properties.step_expr),
-                MacroParameter("data_type", properties.diag_message),
+                MacroParameter("data_type", properties.data_type),
                 MacroParameter("interval_unit", properties.interval_unit)
             ],
         )
