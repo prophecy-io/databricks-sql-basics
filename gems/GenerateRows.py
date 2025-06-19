@@ -9,7 +9,6 @@ class GenerateRows(MacroSpec):
     name: str = "GenerateRows"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Prepare"
-    minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
     class GenerateRowsProperties(MacroProperties):
