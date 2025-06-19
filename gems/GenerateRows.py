@@ -73,7 +73,7 @@ class GenerateRows(MacroSpec):
 
 
     def apply(self, props: GenerateRowsProperties) -> str:
-        table_name = next((x for x in props.relation_name if x.strip()), '')
+        table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
