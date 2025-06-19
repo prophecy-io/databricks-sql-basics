@@ -43,63 +43,19 @@
 {% if not is_table %}
     {# ---- stand-alone generator (one column) ---- #}
 
-    {% if data_type in numeric_types %}
-        SELECT explode(
-                 sequence(
-                     CAST({{ start_expr }} AS {{ data_type }}),
-                     CAST({{ end_expr   }} AS {{ data_type }}),
-                     {{ step_calc }}
-                 )
-               ) AS {{ new_field_name }}
-
-    {% elif data_type in ['date','timestamp'] %}
-        SELECT explode(
-                 sequence(
-                     CAST({{ start_expr }} AS {{ data_type }}),
-                     CAST({{ end_expr   }} AS {{ data_type }}),
-                     interval {{ step_calc }} {{ interval_unit }}
-                 )
-               ) AS {{ new_field_name }}
-
-    {% else %}
-        SELECT NULL AS {{ new_field_name }} WHERE FALSE
-    {% endif %}
+    select 1 as a
 
 {% else %}
     {# ---- cross-join to input table, retain all columns ---- #}
 
     {% if data_type in numeric_types %}
-        SELECT
-            r.* ,
-            gen.val AS {{ new_field_name }}
-        FROM {{ rel_trimmed }} AS r
-        CROSS JOIN (
-            SELECT explode(
-                     sequence(
-                         CAST({{ start_expr }} AS {{ data_type }}),
-                         CAST({{ end_expr   }} AS {{ data_type }}),
-                         {{ step_calc }}
-                     )
-                 ) AS val
-        ) gen
+        select *, 1 as d from {{ rel_trimmed }}
 
     {% elif data_type in ['date','timestamp'] %}
-        SELECT
-            r.* ,
-            gen.val AS {{ new_field_name }}
-        FROM {{ rel_trimmed }} AS r
-        CROSS JOIN (
-            SELECT explode(
-                     sequence(
-                         CAST({{ start_expr }} AS {{ data_type }}),
-                         CAST({{ end_expr   }} AS {{ data_type }}),
-                         interval {{ step_calc }} {{ interval_unit }}
-                     )
-                 ) AS val
-        ) gen
+        select *, 1 as e from {{ rel_trimmed }}
 
     {% else %}
-        SELECT NULL AS {{ new_field_name }} WHERE FALSE
+        select *, 1 as f from {{ rel_trimmed }}
     {% endif %}
 {% endif %}
 )
