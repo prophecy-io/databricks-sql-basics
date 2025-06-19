@@ -73,7 +73,7 @@ class GenerateRows(MacroSpec):
 
 
     def apply(self, props: GenerateRowsProperties) -> str:
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
+        table_name = next((x for x in props.relation_name if x.strip()), '')
 
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
@@ -90,18 +90,25 @@ class GenerateRows(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # --- GenerateRows.loadProperties -----------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        # Load the component's state given default macro property representation
-        parametersMap = self.convertToParameterMap(properties.parameters)
-        return GenerateRows.GenerateRowsProperties(
-            relation_name=parametersMap.get('relation_name'),
-            new_field_name=parametersMap.get('new_field_name'),
-            start_expr=parametersMap.get('start_expr'),
-            end_expr=parametersMap.get('end_expr'),
-            step_expr=parametersMap.get('step_expr'),
-            data_type=parametersMap.get('data_type'),
-            interval_unit=parametersMap.get('interval_unit')
+        p = self.convertToParameterMap(properties.parameters)
 
+        # turn the stored string "['seed1']" back into a real list
+        raw_rel = p.get('relation_name', '')
+        try:
+            relation_list = json.loads(raw_rel.replace("'", '"')) if raw_rel.strip() else []
+        except json.JSONDecodeError:
+            relation_list = [raw_rel] if raw_rel.strip() else []
+
+        return GenerateRows.GenerateRowsProperties(
+            relation_name = relation_list,
+            new_field_name = p.get('new_field_name'),
+            start_expr     = p.get('start_expr'),
+            end_expr       = p.get('end_expr'),
+            step_expr      = p.get('step_expr'),
+            data_type      = p.get('data_type'),
+            interval_unit  = p.get('interval_unit')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
