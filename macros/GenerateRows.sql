@@ -43,7 +43,7 @@
 {% if not is_table %}
     {# ---- stand-alone generator (one column) ---- #}
 
-    select 1 as a
+    select 1 as a, '{{ rel_trimmed }}' as b
 
 {% else %}
     {# ---- cross-join to input table, retain all columns ---- #}
