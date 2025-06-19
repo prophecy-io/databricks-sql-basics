@@ -94,15 +94,20 @@ class GenerateRows(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         p = self.convertToParameterMap(properties.parameters)
 
-        # turn the stored string "['seed1']" back into a real list
+        # --- turn the stored text "['seed1']" back into a real list -------------
         raw_rel = p.get('relation_name', '')
         try:
-            relation_list = json.loads(raw_rel.replace("'", '"')) if raw_rel.strip() else []
+            relation_name_list = (
+                json.loads(raw_rel.replace("'", '"'))
+                if raw_rel.strip() not in ['', '[]']
+                else []
+            )
         except json.JSONDecodeError:
-            relation_list = [raw_rel] if raw_rel.strip() else []
+            # if it's something like 'seed1' just wrap it in a list
+            relation_name_list = [raw_rel.strip()] if raw_rel.strip() else []
 
         return GenerateRows.GenerateRowsProperties(
-            relation_name = relation_list,
+            relation_name = relation_name_list,            # <-- now always a list
             new_field_name = p.get('new_field_name'),
             start_expr     = p.get('start_expr'),
             end_expr       = p.get('end_expr'),
