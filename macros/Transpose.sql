@@ -1,4 +1,3 @@
-
 {%- macro Transpose(
     relation_name,
     keyColumns,
@@ -8,14 +7,16 @@
     schema=[]) -%}
 
   {%- set available_cols = [] -%}
-  {%- if keyColumns and dataColumns and nameColumn | length > 0 and valueColumn | length > 0 -%}
+  {%- if dataColumns and nameColumn | length > 0 and valueColumn | length > 0 -%}
 
     {%- set union_queries = [] -%}
     {%- for data_col in dataColumns -%}
       {%- set select_list = [] -%}
-      {%- for key in keyColumns -%}
-        {%- do select_list.append(key) -%}
-      {%- endfor -%}
+      {%- if keyColumns -%}
+        {%- for key in keyColumns -%}
+          {%- do select_list.append(key) -%}
+        {%- endfor -%}
+      {%- endif -%}
       {%- do select_list.append("'" ~ data_col ~ "' as " ~ nameColumn) -%}
       {%- do select_list.append('CAST(' ~ data_col ~ ' as string) as ' ~ valueColumn ) -%}
       

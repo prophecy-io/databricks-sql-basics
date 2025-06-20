@@ -123,10 +123,6 @@ class Transpose(MacroSpec):
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
         diagnostics = super(Transpose, self).validate(context, component)
-        if not component.properties.keyColumns:
-            diagnostics.append(
-                Diagnostic("properties.keyColumns", f"Key columns can't be empty.", SeverityLevelEnum.Error)
-            )
 
         if not component.properties.dataColumns:
             diagnostics.append(
