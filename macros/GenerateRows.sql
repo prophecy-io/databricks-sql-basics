@@ -7,74 +7,60 @@
         data_type      = 'int',
         interval_unit  = 'day'
 ) %}
-{%- set numeric = ['int','integer','bigint','float','double','decimal'] -%}
-{%- set has_table = relation_name | trim != '' -%}
 
-{# build step expression ---------------------------------------------------- #}
-{% if data_type in numeric %}
-    {% set step_safe = "
-        CASE
-            WHEN CAST(" ~ step_expr  ~ " AS " ~ data_type ~ ") = 0 THEN 1
-            WHEN CAST(" ~ start_expr ~ " AS " ~ data_type ~ ") >
-                 CAST(" ~ end_expr   ~ " AS " ~ data_type ~ ")
-                 THEN -ABS(CAST(" ~ step_expr ~ " AS " ~ data_type ~ "))
-            ELSE  ABS(CAST(" ~ step_expr ~ " AS " ~ data_type ~ "))
-        END" %}
+{%- set numeric_types = ['int','integer','bigint','float','double','decimal'] -%}
+{%- set has_table     = relation_name | trim != '' -%}
+
+{# ---------- safe step (auto-flip sign if descending) ----------------------- #}
+{% if data_type in numeric_types %}
+    {% set step_safe = "CASE WHEN (" ~ step_expr ~ ") = 0 THEN 1 " ~
+                       "WHEN (" ~ start_expr ~ ") > (" ~ end_expr ~ ") " ~
+                       "THEN -ABS(" ~ step_expr ~ ") ELSE ABS(" ~ step_expr ~ ") END" %}
 {% else %}
-    {% set step_safe = "
-        CASE
-            WHEN CAST(" ~ start_expr ~ " AS " ~ data_type ~ ") >
-                 CAST(" ~ end_expr   ~ " AS " ~ data_type ~ ")
-                 THEN -ABS(CAST(" ~ step_expr ~ " AS INT))
-            ELSE  ABS(CAST(" ~ step_expr ~ " AS INT))
-        END" %}
+    {% set step_safe = "CASE WHEN (" ~ start_expr ~ ") > (" ~ end_expr ~ ") " ~
+                       "THEN -ABS(CAST(" ~ step_expr ~ " AS INT)) " ~
+                       "ELSE  ABS(CAST(" ~ step_expr ~ " AS INT)) END" %}
 {% endif %}
 
-{# wrap date/timestamp literals with DATE/TIMESTAMP syntax ------------------ #}
+{# ---------- wrap date/timestamp literals with quotes ----------------------- #}
 {% if data_type in ['date','timestamp'] %}
-    {% set start_sql = (
-         "DATE '" ~ start_expr ~ "'" if start_expr is string and not start_expr|string.startswith(("'", 'DATE ', 'TIMESTAMP '))
-         else start_expr
+    {% set cast_start = (
+           "CAST('" ~ start_expr ~ "' AS " ~ data_type ~ ")"
+           if "'" not in start_expr and "." not in start_expr and "(" not in start_expr
+           else "CAST(" ~ start_expr ~ " AS " ~ data_type ~ ")"
     ) %}
-    {% set end_sql = (
-         "DATE '" ~ end_expr ~ "'" if end_expr is string and not end_expr|string.startswith(("'", 'DATE ', 'TIMESTAMP '))
-         else end_expr
+    {% set cast_end = (
+           "CAST('" ~ end_expr ~ "' AS " ~ data_type ~ ")"
+           if "'" not in end_expr and "." not in end_expr and "(" not in end_expr
+           else "CAST(" ~ end_expr ~ " AS " ~ data_type ~ ")"
     ) %}
 {% else %}
-    {% set start_sql = start_expr %}
-    {% set end_sql   = end_expr %}
+    {% set cast_start = "CAST(" ~ start_expr ~ " AS " ~ data_type ~ ")" %}
+    {% set cast_end   = "CAST(" ~ end_expr   ~ " AS " ~ data_type ~ ")" %}
 {% endif %}
 
 (
 {% if not has_table %}
-    {% if data_type in numeric %}
-        SELECT explode(sequence(CAST({{ start_sql }} AS {{ data_type }}),
-                                 CAST({{ end_sql   }} AS {{ data_type }}),
-                                 {{ step_safe }})) AS {{ new_field_name }}
+    {# ---------------- stand-alone generator ------------------------------- #}
+    {% if data_type in numeric_types %}
+        SELECT explode(sequence({{ cast_start }}, {{ cast_end }}, {{ step_safe }})) AS {{ new_field_name }}
     {% elif data_type in ['date','timestamp'] %}
-        SELECT explode(sequence(CAST({{ start_sql }} AS {{ data_type }}),
-                                 CAST({{ end_sql   }} AS {{ data_type }}),
-                                 interval ({{ step_safe }}) {{ interval_unit }})) AS {{ new_field_name }}
+        SELECT explode(sequence({{ cast_start }}, {{ cast_end }},
+                                interval ({{ step_safe }}) {{ interval_unit }})) AS {{ new_field_name }}
     {% else %}
         SELECT NULL AS {{ new_field_name }} WHERE FALSE
     {% endif %}
 {% else %}
-    {% if data_type in numeric %}
-        SELECT r.*,
-               val AS {{ new_field_name }}
+    {# ---------------- per-row generator (retain all columns) --------------- #}
+    {% if data_type in numeric_types %}
+        SELECT r.*, val AS {{ new_field_name }}
         FROM {{ relation_name }} AS r
-        LATERAL VIEW explode(
-            sequence(CAST({{ start_sql }} AS {{ data_type }}),
-                     CAST({{ end_sql   }} AS {{ data_type }}),
-                     {{ step_safe }})) t AS val
+        LATERAL VIEW explode(sequence({{ cast_start }}, {{ cast_end }}, {{ step_safe }})) t AS val
     {% elif data_type in ['date','timestamp'] %}
-        SELECT r.*,
-               val AS {{ new_field_name }}
+        SELECT r.*, val AS {{ new_field_name }}
         FROM {{ relation_name }} AS r
-        LATERAL VIEW explode(
-            sequence(CAST({{ start_sql }} AS {{ data_type }}),
-                     CAST({{ end_sql   }} AS {{ data_type }}),
-                     interval ({{ step_safe }}) {{ interval_unit }})) t AS val
+        LATERAL VIEW explode(sequence({{ cast_start }}, {{ cast_end }},
+                                      interval ({{ step_safe }}) {{ interval_unit }})) t AS val
     {% else %}
         SELECT NULL AS {{ new_field_name }} WHERE FALSE
     {% endif %}
