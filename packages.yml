@@ -1,0 +1,4 @@
+---
+packages:
+  - revision: "dev/abhinav"
+    git: "https://github.com/prophecy-io/prophecy-basics.git"
