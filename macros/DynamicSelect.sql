@@ -15,17 +15,21 @@
     {%- set selected_columns = [] -%}
     {%- for column in enriched_schema -%}
         {%- if selectUsing == 'SELECT_EXPR' -%}
-                {# Evaluate the custom expression by substituting column name in the expression #}
-                {%- if "column_name" in customExpression -%}
-                {%- set expression_to_evaluate = customExpression.replace("column_name", "'" ~ column["name"] ~ "'") -%}
+                {%- set expression_to_evaluate = customExpression -%}
+
+                {%- if "column_name" in expression_to_evaluate -%}
+                    {%- set expression_to_evaluate = expression_to_evaluate.replace(
+                        "column_name", "'" ~ column["name"] ~ "'") -%}
                 {%- endif -%}
 
-                {%- if "column_type" in customExpression -%}
-                {%- set expression_to_evaluate = customExpression.replace("column_type", "'" ~ column["dataType"] ~ "'") -%}
+                {%- if "column_type" in expression_to_evaluate -%}
+                    {%- set expression_to_evaluate = expression_to_evaluate.replace(
+                        "column_type", "'" ~ column["dataType"] ~ "'") -%}
                 {%- endif -%}
 
-                {%- if "field_number" in customExpression -%}
-                {%- set expression_to_evaluate = customExpression.replace("field_number", "'" ~ column["column_index"] ~ "'") -%}
+                {%- if "field_number" in expression_to_evaluate -%}
+                    {%- set expression_to_evaluate = expression_to_evaluate.replace(
+                        "field_number", "'" ~ column["column_index"] ~ "'") -%}
                 {%- endif -%}
 
                 {%- set evaluation_result = DatabricksSqlBasics.evaluate_expression(expression_to_evaluate) | trim -%}
