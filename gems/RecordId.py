@@ -22,7 +22,7 @@ class OrderByRule:
 class RecordId(MacroSpec):
     name: str = "RecordId"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Transform"
+    category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
