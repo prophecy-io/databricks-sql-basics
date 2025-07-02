@@ -71,7 +71,7 @@ class DataEncoder(MacroSpec):
                         )
             .addElement(
                 Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
-                    TextBox("authenticated additional data(aad)").bindProperty("aes_encrypt_aad").bindPlaceholder("None")
+                    TextBox("authenticated additional data(aad)").bindProperty("aes_encrypt_aad").bindPlaceholder("")
                 )
             )
         )
@@ -86,27 +86,36 @@ class DataEncoder(MacroSpec):
                         )
             .addElement(
                 Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
-                    TextBox("authenticated additional data(aad)").bindProperty("aes_encrypt_aad").bindPlaceholder("None")
+                    TextBox("authenticated additional data(aad)").bindProperty("aes_encrypt_aad").bindPlaceholder("")
                 )
             )
         )
 
 
         aes_encrypt_params_ui = (
-            copy.deepcopy(aes_decrypt_params_ui)
+            StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
+            .addElement(TextBox("key").bindProperty("aes_enc_dec_key").bindPlaceholder(""))
+            .addElement(SelectBox("mode").bindProperty("aes_enc_dec_mode").withDefault("GCM")
+                        .addOption("Galois/Counter Mode (GCM)", "GCM")
+                        .addOption("Cipher-Block Chaining (CBC)", "CBC")
+                        .addOption("Electronic CodeBook (ECB)", "ECB")
+                        )
             .addElement(
                 Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
-                    TextBox("initialization vector(iv)").bindProperty("aes_encrypt_iv").bindPlaceholder("None")
+                    TextBox("authenticated additional data(aad)").bindProperty("aes_encrypt_aad").bindPlaceholder("")
+                )
+            )
+            .addElement(
+                Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
+                    TextBox("initialization vector(iv)").bindProperty("aes_encrypt_iv").bindPlaceholder("")
                 )
             )
             .addElement(
                 Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("CBC")).then(
-                    TextBox("initialization vector(iv)").bindProperty("aes_encrypt_iv").bindPlaceholder("None")
+                    TextBox("initialization vector(iv)").bindProperty("aes_encrypt_iv").bindPlaceholder("")
                 )
             )
         )
-
-
 
         dialog = Dialog("encoder_decoder").addElement(
             ColumnsLayout(gap="1rem", height="100%")
@@ -192,7 +201,7 @@ class DataEncoder(MacroSpec):
                     Diagnostic("component.properties.aes_enc_dec_key", f"length on key should be one of 16, 24, 32 bytes length. Right now length is {len(key.encode('utf-8'))}", SeverityLevelEnum.Error)
                 )
             mode = component.properties.aes_enc_dec_mode
-            if mode in ('GCM', 'CBC'):
+            if mode in ('GCM', 'CBC', 'ECB'):
                 iv = component.properties.aes_encrypt_iv
                 if mode == 'GCM' and len(iv.encode('utf-8')) != 12:
                     diagnostics.append(
@@ -202,6 +211,11 @@ class DataEncoder(MacroSpec):
                     diagnostics.append(
                         Diagnostic("component.properties.aes_encrypt_iv", f"length on initialization vector,iv should be of 16 bytes for CBC mode. Right now length is {len(iv.encode('utf-8'))}", SeverityLevelEnum.Error)
                     )
+                elif mode == 'ECB' and len(iv.encode('utf-8')) > 0:
+                    diagnostics.append(
+                        Diagnostic("component.properties.aes_encrypt_iv", f"length on initialization vector,iv should be of 0 bytes for ECB mode. Right now length is {len(iv.encode('utf-8'))} AND IV = {iv}", SeverityLevelEnum.Error)
+                    )
+
         elif enc_dec_method in ("aes_decrypt", "try_aes_decrypt"):
             key = component.properties.aes_enc_dec_key
             if len(key.encode('utf-8')) not in (16, 24, 32):
@@ -236,10 +250,20 @@ class DataEncoder(MacroSpec):
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(newState, context)
 
+        old_enc_method, old_enc_mode = oldState.properties.enc_dec_method, oldState.properties.aes_enc_dec_mode
+        new_enc_method, new_enc_mode = newState.properties.enc_dec_method, newState.properties.aes_enc_dec_mode
+
+        if old_enc_method != new_enc_method or old_enc_mode != new_enc_mode:
+            aes_encrypt_iv, aes_encrypt_aad = "", ""
+        else:
+            aes_encrypt_iv, aes_encrypt_aad = newState.properties.aes_encrypt_iv, newState.properties.aes_encrypt_aad
+
         newProperties = dataclasses.replace(
             newState.properties,
             schema=json.dumps(fields_array),
-            relation_name=relation_name
+            relation_name=relation_name,
+            aes_encrypt_aad=aes_encrypt_aad,
+            aes_encrypt_iv=aes_encrypt_iv
         )
         return newState.bindProperties(newProperties)
 
