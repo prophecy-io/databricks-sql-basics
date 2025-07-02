@@ -101,7 +101,7 @@
 
     {%- set select_clause_sql = withColumn_clause | join(', ') -%}
 
-    
+
     {%- set select_cte_sql -%}
         {%- if select_clause_sql == "" -%}
             WITH final_cte AS (
@@ -113,10 +113,12 @@
                 SELECT *, {{ select_clause_sql }}
                 FROM {{ relation_name }}
             )
-        {%- endif -%}    
+        {%- endif -%}
     {%- endset -%}
 
     {%- set final_select_query = select_cte_sql ~ "\nSELECT * FROM final_cte" -%}
+    {{ log("final select query is -> ", info=True) }}
+    {{ log(final_select_query, info=True) }}
 
     {{ return(final_select_query) }}
 
