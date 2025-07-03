@@ -20,30 +20,24 @@
     replaceNullTimeWith="1970-01-01 00:00:00"
 ) %}
 
-    {# ----------------------------------------------------------- #
-       helper: quote an identifier the way Spark/Databricks expects
-       (adapter.quote_identifier already returns the right back-tick
-        quoting for the current adapter)                         #}
+    {# ─── helper: quote an identifier the adapter’s way (Spark ⇒ back-ticks) ─── #}
     {%- set q = adapter.quote_identifier -%}
 
     {{ log("Applying dataset-specific cleansing operations", info=True) }}
     {%- if removeRowNullAllCols -%}
-        {{ log("Removing rows where all columns are null", info=True) }}
-        {%- set where_clause = [] -%}
-        {%- for col in schema -%}
-            {%- do where_clause.append(q(col['name']) ~ ' IS NOT NULL') -%}
-        {%- endfor -%}
-        {%- set where_clause_sql = where_clause | join(' OR ') -%}
-
+        {{ log("Removing rows where all columns are NULL", info=True) }}
+        {%- set where_clause = schema | map(attribute='name')
+                                        | map('string')
+                                        | map(q)
+                                        | map('~', ' IS NOT NULL') | list -%}
         {%- set cleansed_cte -%}
             WITH cleansed_data AS (
                 SELECT *
                 FROM {{ relation_name }}
-                WHERE {{ where_clause_sql }}
+                WHERE {{ where_clause | join(' OR ') }}
             )
         {%- endset -%}
     {%- else -%}
-        {{ log("Returning all rows (no row-level cleansing)", info=True) }}
         {%- set cleansed_cte -%}
             WITH cleansed_data AS (
                 SELECT *
@@ -54,25 +48,27 @@
 
     {{ log("Applying column-specific cleansing operations", info=True) }}
     {%- if columnNames | length > 0 -%}
-        {%- set columns_to_select = [] -%}
-        {%- set col_type_map = {} -%}
-        {%- for col in schema -%}
-            {%- set col_type_map = col_type_map.update({ col.name: col.dataType | lower }) -%}
-        {%- endfor -%}
+        {# ---------------- prepare helpers ---------------- #}
         {%- set numeric_types = ["bigint","decimal","double","float",
                                  "integer","smallint","tinyint"] -%}
+        {%- set col_type_map = {} -%}
+        {%- for c in schema -%}
+            {%- set col_type_map = col_type_map.update({ c.name: c.dataType | lower }) -%}
+        {%- endfor -%}
 
+        {%- set columns_to_select = [] -%}
+
+        {# ---------------- generate per-column expressions ---------------- #}
         {%- for col_name in columnNames -%}
             {%- set col_expr = q(col_name) -%}
 
-            {# -------- numeric null handling -------- #}
+            {# numeric null substitution #}
             {%- if col_type_map.get(col_name) in numeric_types
                    and replaceNullForNumericFields -%}
-                {%- set col_expr
-                     = "COALESCE(" ~ col_expr ~ ", " ~ replaceNullNumericWith | string ~ ")" -%}
+                {%- set col_expr = "COALESCE(" ~ col_expr ~ ", " ~ replaceNullNumericWith | string ~ ")" -%}
             {%- endif -%}
 
-            {# -------- string-typed columns -------- #}
+            {# string-type cleansing #}
             {%- if col_type_map.get(col_name) == "string" -%}
                 {%- if replaceNullTextFields -%}
                     {%- set col_expr = "COALESCE(" ~ col_expr ~ ", '" ~ replaceNullTextWith ~ "')" -%}
@@ -96,7 +92,6 @@
                     {%- set col_expr = "REGEXP_REPLACE(" ~ col_expr ~ ", '\\\\d+', '')" -%}
                 {%- endif -%}
 
-                {# -------- case conversion -------- #}
                 {%- if modifyCase == "makeLowercase" -%}
                     {%- set col_expr = "LOWER(" ~ col_expr ~ ")" -%}
                 {%- elif modifyCase == "makeUppercase" -%}
@@ -106,38 +101,37 @@
                 {%- endif -%}
             {%- endif -%}
 
-            {# -------- date/time null handling -------- #}
+            {# date/timestamp null substitution #}
             {%- if col_type_map.get(col_name) == "date" and replaceNullDateFields -%}
-                {%- set col_expr
-                     = "COALESCE(" ~ col_expr ~ ", DATE '" ~ replaceNullDateWith ~ "')" -%}
+                {%- set col_expr = "COALESCE(" ~ col_expr ~ ", DATE '" ~ replaceNullDateWith ~ "')" -%}
+            {%- endif -%}
+            {%- if col_type_map.get(col_name) == "timestamp" and replaceNullTimeFields -%}
+                {%- set col_expr = "COALESCE(" ~ col_expr ~ ", TIMESTAMP '" ~ replaceNullTimeWith ~ "')" -%}
             {%- endif -%}
 
-            {%- if col_type_map.get(col_name) == "timestamp"
-                   and replaceNullTimeFields -%}
-                {%- set col_expr
-                     = "COALESCE(" ~ col_expr ~ ", TIMESTAMP '" ~ replaceNullTimeWith ~ "')" -%}
-            {%- endif -%}
-
-            {# -------- final casting & alias -------- #}
+            {# final cast & alias #}
             {%- set col_expr = "CAST(" ~ col_expr ~ " AS " ~ col_type_map.get(col_name) ~ ")" -%}
             {%- do columns_to_select.append(col_expr ~ ' AS ' ~ q(col_name)) -%}
         {%- endfor -%}
 
-        {# ----- build final select list (preserve original col order) ----- #}
+        {# ------------- preserve original column order ------------- #}
         {%- set output_columns = [] -%}
         {%- for col in schema -%}
-            {%- set override = columns_to_select
-                               | selectattr('endswith', q(col['name'])) | list | first -%}
-            {%- if override -%}
-                {%- do output_columns.append(override) -%}
-            {%- else -%}
-                {%- do output_columns.append(q(col['name'])) -%}
+            {% set overridden = {"flag": false} %}
+            {%- for expr in columns_to_select -%}
+                {%- set alias = expr.split(' AS ')[-1] | replace('`', '') | upper -%}
+                {%- if col.name | replace('`','') | replace('"','') | upper == alias -%}
+                    {%- do output_columns.append(expr) -%}
+                    {% do overridden.update({"flag": true}) %}
+                    {%- break -%}
+                {%- endif -%}
+            {%- endfor -%}
+            {%- if not overridden.flag -%}
+                {%- do output_columns.append(q(col.name)) -%}
             {%- endif -%}
         {%- endfor -%}
 
-        {%- set final_select -%}
-            SELECT {{ output_columns | join(', ') }} FROM cleansed_data
-        {%- endset -%}
+        {%- set final_select = "SELECT " ~ (output_columns | join(', ')) ~ " FROM cleansed_data" -%}
     {%- else -%}
         {%- set final_select = "SELECT * FROM cleansed_data" -%}
     {%- endif -%}
