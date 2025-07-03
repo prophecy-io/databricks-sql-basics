@@ -1,41 +1,46 @@
 {%- macro Transpose(
-    relation_name,
-    keyColumns,
-    dataColumns,
-    nameColumn,
-    valueColumn,
-    schema=[]) -%}
+        relation_name,
+        keyColumns,
+        dataColumns,
+        nameColumn,
+        valueColumn,
+        schema=[]
+) -%}
 
-  {#— simple helper to quote identifiers —#}
-  {%- set quote = lambda x: '`' ~ x ~ '`' -%}
+    {# one reusable back-tick for identifier quoting #}
+    {% set bt = "`" %}
 
-  {%- set available_cols = [] -%}
-  {%- if dataColumns and nameColumn | length > 0 and valueColumn | length > 0 -%}
+    {%- if dataColumns and (nameColumn | length > 0) and (valueColumn | length > 0) -%}
 
-    {%- set union_queries = [] -%}
-    {%- for data_col in dataColumns -%}
-      {%- set select_list = [] -%}
+        {%- set union_queries = [] -%}
 
-      {%- if keyColumns -%}
-        {%- for key in keyColumns -%}
-          {# quote each key column #}
-          {%- do select_list.append(quote(key)) -%}
+        {%- for data_col in dataColumns -%}
+            {%- set select_list = [] -%}
+
+            {# key columns (if any) #}
+            {%- if keyColumns -%}
+                {%- for key in keyColumns -%}
+                    {%- do select_list.append(bt ~ key ~ bt) %}
+                {%- endfor -%}
+            {%- endif -%}
+
+            {# literal column name → nameColumn alias #}
+            {%- do select_list.append("'" ~ data_col ~ "' AS " ~ bt ~ nameColumn ~ bt) -%}
+
+            {# actual value → valueColumn alias #}
+            {%- do select_list.append(
+                    'CAST(' ~ bt ~ data_col ~ bt ~ ' AS STRING) AS ' ~ bt ~ valueColumn ~ bt
+                ) -%}
+
+            {%- set query = 'SELECT ' ~ (select_list | join(', ')) ~
+                            ' FROM ' ~ relation_name -%}
+            {%- do union_queries.append(query) -%}
         {%- endfor -%}
-      {%- endif -%}
 
-      {# literal value for “which column”, plus quoted alias #}
-      {%- do select_list.append("'" ~ data_col ~ "' as " ~ quote(nameColumn)) -%}
+        {{ union_queries | join('\nUNION ALL\n') }}
 
-      {# value of the data column, cast to string, with quoted alias #}
-      {%- do select_list.append('CAST(' ~ quote(data_col) ~ ' AS STRING) AS ' ~ quote(valueColumn)) -%}
-
-      {%- set query = 'SELECT ' ~ (select_list | join(', ')) ~ ' FROM ' ~ relation_name -%}
-      {%- do union_queries.append(query) -%}
-    {%- endfor -%}
-
-    {{ union_queries | join('\nUNION ALL\n') }}
-  {%- else -%}
-    SELECT * FROM {{ relation_name }}
-  {%- endif -%}
+    {%- else -%}
+        SELECT * FROM {{ relation_name }}
+    {%- endif -%}
 
 {%- endmacro -%}
