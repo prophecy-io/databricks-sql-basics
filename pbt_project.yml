@@ -159,6 +159,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/FindDuplicates.py
     createdAt: '2025-07-04 04:59:45'
+  .prophecy/metadata/sqlmacros/DataEncoder:
+    name: DataEncoder
+    macroType: query
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/DataEncoder.sql
+      - .prophecy/ide/macros/DataEncoder.json
+      - macros/macros.yml
+      - gems/DataEncoder.py
+    createdAt: '2025-07-04 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
