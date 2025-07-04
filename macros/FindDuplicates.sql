@@ -24,8 +24,14 @@
     {%- set select_window_filter -%}
         {%- if column_group_condition == "between" -%}
             SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count BETWEEN {{ left_limit }} AND {{ right_limit }}
-        {%-else -%}
+        {%-elif column_group_condition == "equal_to" -%}
             SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count = {{ count_value }}
+        {%-elif column_group_condition == "not_equal_to" -%}
+            SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count <> {{ count_value }}
+        {%-elif column_group_condition == "less_than" -%}
+            SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count < {{ count_value }}
+        {%-elif column_group_condition == "greater_than" -%}
+            SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count > {{ count_value }}
         {%- endif -%}
     {%- endset -%}
 
