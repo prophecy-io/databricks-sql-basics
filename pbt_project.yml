@@ -148,6 +148,16 @@ sqlMacros:
       - macros/macros.yml
       - gems/ToDo.py
     createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/generate_schema_name:
+    name: generate_schema_name
+    macroType: expression
+    description: null
+    author: ayadav@prophecy.io
+    files:
+      - macros/generate_schema_name.sql
+      - .prophecy/ide/macros/generate_schema_name.json
+      - macros/macros.yml
+    createdAt: '2025-03-28 05:05:21'
   .prophecy/metadata/sqlmacros/DataEncoder:
     name: DataEncoder
     macroType: query
@@ -159,16 +169,6 @@ sqlMacros:
       - macros/macros.yml
       - gems/DataEncoder.py
     createdAt: '2025-07-04 04:59:45'
-  .prophecy/metadata/sqlmacros/generate_schema_name:
-    name: generate_schema_name
-    macroType: expression
-    description: null
-    author: ayadav@prophecy.io
-    files:
-      - macros/generate_schema_name.sql
-      - .prophecy/ide/macros/generate_schema_name.json
-      - macros/macros.yml
-    createdAt: '2025-03-28 05:05:21'
   .prophecy/metadata/sqlmacros/evaluate_expression:
     name: evaluate_expression
     macroType: expression
