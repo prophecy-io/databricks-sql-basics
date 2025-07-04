@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.11.dev0
+version: 0.0.11.dev1
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
@@ -148,6 +148,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/ToDo.py
     createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/FindDuplicates:
+    name: FindDuplicates
+    macroType: query
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/FindDuplicates.sql
+      - .prophecy/ide/macros/FindDuplicates.json
+      - macros/macros.yml
+      - gems/FindDuplicates.py
+    createdAt: '2025-07-04 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
