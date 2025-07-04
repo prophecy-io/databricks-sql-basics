@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.11.dev0
+version: 0.0.11.dev1
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
@@ -33,10 +33,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/DataCleansing.sql
-    - .prophecy/ide/macros/DataCleansing.json
-    - macros/macros.yml
-    - gems/DataCleansing.py
+      - macros/DataCleansing.sql
+      - .prophecy/ide/macros/DataCleansing.json
+      - macros/macros.yml
+      - gems/DataCleansing.py
     createdAt: '2025-04-10 05:01:34'
   .prophecy/metadata/sqlmacros/DynamicSelect:
     name: DynamicSelect
@@ -44,10 +44,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/DynamicSelect.sql
-    - .prophecy/ide/macros/DynamicSelect.json
-    - macros/macros.yml
-    - gems/DynamicSelect.py
+      - macros/DynamicSelect.sql
+      - .prophecy/ide/macros/DynamicSelect.json
+      - macros/macros.yml
+      - gems/DynamicSelect.py
     createdAt: '2025-04-10 05:01:34'
   .prophecy/metadata/sqlmacros/FuzzyMatch:
     name: FuzzyMatch
@@ -55,10 +55,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/FuzzyMatch.sql
-    - .prophecy/ide/macros/FuzzyMatch.json
-    - macros/macros.yml
-    - gems/FuzzyMatch.py
+      - macros/FuzzyMatch.sql
+      - .prophecy/ide/macros/FuzzyMatch.json
+      - macros/macros.yml
+      - gems/FuzzyMatch.py
     createdAt: '2025-04-10 05:01:34'
   .prophecy/metadata/sqlmacros/Transpose:
     name: Transpose
@@ -66,10 +66,10 @@ sqlMacros:
     description: null
     author: shashank@prophecy.io
     files:
-    - macros/Transpose.sql
-    - .prophecy/ide/macros/Transpose.json
-    - macros/macros.yml
-    - gems/Transpose.py
+      - macros/Transpose.sql
+      - .prophecy/ide/macros/Transpose.json
+      - macros/macros.yml
+      - gems/Transpose.py
     createdAt: '2025-04-11 05:23:51'
   .prophecy/metadata/sqlmacros/MultiColumnEdit:
     name: MultiColumnEdit
@@ -77,10 +77,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/MultiColumnEdit.sql
-    - .prophecy/ide/macros/MultiColumnEdit.json
-    - macros/macros.yml
-    - gems/MultiColumnEdit.py
+      - macros/MultiColumnEdit.sql
+      - .prophecy/ide/macros/MultiColumnEdit.json
+      - macros/macros.yml
+      - gems/MultiColumnEdit.py
     createdAt: '2025-04-10 05:01:34'
   .prophecy/metadata/sqlmacros/MultiColumnRename:
     name: MultiColumnRename
@@ -88,10 +88,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/MultiColumnRename.sql
-    - .prophecy/ide/macros/MultiColumnRename.json
-    - macros/macros.yml
-    - gems/MultiColumnRename.py
+      - macros/MultiColumnRename.sql
+      - .prophecy/ide/macros/MultiColumnRename.json
+      - macros/macros.yml
+      - gems/MultiColumnRename.py
     createdAt: '2024-11-28 04:59:45'
   .prophecy/metadata/sqlmacros/TextToColumns:
     name: TextToColumns
@@ -99,10 +99,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/TextToColumns.sql
-    - .prophecy/ide/macros/TextToColumns.json
-    - macros/macros.yml
-    - gems/TextToColumns.py
+      - macros/TextToColumns.sql
+      - .prophecy/ide/macros/TextToColumns.json
+      - macros/macros.yml
+      - gems/TextToColumns.py
     createdAt: '2024-11-28 04:59:45'
   .prophecy/metadata/sqlmacros/UnionByName:
     name: UnionByName
@@ -110,10 +110,10 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/UnionByName.sql
-    - .prophecy/ide/macros/UnionByName.json
-    - macros/macros.yml
-    - gems/UnionByName.py
+      - macros/UnionByName.sql
+      - .prophecy/ide/macros/UnionByName.json
+      - macros/macros.yml
+      - gems/UnionByName.py
     createdAt: '2024-11-28 04:59:45'
   .prophecy/metadata/sqlmacros/JSONParse:
     name: JSONParse
@@ -148,15 +148,26 @@ sqlMacros:
       - macros/macros.yml
       - gems/ToDo.py
     createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/DataEncoder:
+    name: DataEncoder
+    macroType: query
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/DataEncoder.sql
+      - .prophecy/ide/macros/DataEncoder.json
+      - macros/macros.yml
+      - gems/DataEncoder.py
+    createdAt: '2025-07-04 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
     description: null
     author: ayadav@prophecy.io
     files:
-    - macros/generate_schema_name.sql
-    - .prophecy/ide/macros/generate_schema_name.json
-    - macros/macros.yml
+      - macros/generate_schema_name.sql
+      - .prophecy/ide/macros/generate_schema_name.json
+      - macros/macros.yml
     createdAt: '2025-03-28 05:05:21'
   .prophecy/metadata/sqlmacros/evaluate_expression:
     name: evaluate_expression
@@ -164,9 +175,9 @@ sqlMacros:
     description: null
     author: adak.debashis@prophecy.io
     files:
-    - macros/evaluate_expression.sql
-    - .prophecy/ide/macros/evaluate_expression.json
-    - macros/macros.yml
+      - macros/evaluate_expression.sql
+      - .prophecy/ide/macros/evaluate_expression.json
+      - macros/macros.yml
     createdAt: '2024-11-28 04:59:45'
 sqlSeeds: {}
 sqlSources: {}
