@@ -1,4 +1,4 @@
-{% macro FilterByGroupCount(
+{% macro FindDuplicates(
     relation_name,
     columnNames,
     column_group_condition,

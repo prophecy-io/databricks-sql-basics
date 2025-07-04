@@ -8,15 +8,15 @@ from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
 
 
-class FilterByGroupCount(MacroSpec):
-    name: str = "FilterByGroupCount"
-    projectName: str = "project1"
+class FindDuplicates(MacroSpec):
+    name: str = "FindDuplicates"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Custom"
     minNumOfInputPorts: int = 1
 
 
     @dataclass(frozen=True)
-    class FilterByGroupCountProperties(MacroProperties):
+    class FindDuplicatesProperties(MacroProperties):
         # properties for the component with default values
         relation_name: List[str] = field(default_factory=list)
         schema: str = ''
@@ -30,7 +30,7 @@ class FilterByGroupCount(MacroSpec):
         between_condition = Condition().ifEqual(
             PropExpr("component.properties.column_group_condition"), StringExpr("between")
         )
-        return Dialog("FilterByGroupCount").addElement(
+        return Dialog("FindDuplicates").addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(Ports(), "content")
             .addColumn(
@@ -81,7 +81,7 @@ class FilterByGroupCount(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        diagnostics = super(FilterByGroupCount, self).validate(context, component)
+        diagnostics = super(FindDuplicates, self).validate(context, component)
         condition = component.properties.column_group_condition
         count_value = component.properties.count_value
         left_limit = component.properties.left_limit
@@ -142,7 +142,7 @@ class FilterByGroupCount(MacroSpec):
         )
         return newState.bindProperties(newProperties)
 
-    def apply(self, props: FilterByGroupCountProperties) -> str:
+    def apply(self, props: FindDuplicatesProperties) -> str:
         # generate the actual macro call given the component's state
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
         resolved_macro_name = f"{self.projectName}.{self.name}"
@@ -169,7 +169,7 @@ class FilterByGroupCount(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        return FilterByGroupCount.FilterByGroupCountProperties(
+        return FindDuplicates.FindDuplicatesProperties(
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
