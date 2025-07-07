@@ -200,7 +200,11 @@ class MultiColumnEdit(MacroSpec):
 
         arguments = [
             "'" + table_name + "'",
-            "\"" + props.expressionToBeApplied + "\"",
+            (
+                props.expressionToBeApplied.replace("{{", "").replace("}}", "").strip()
+                if "{{" in props.expressionToBeApplied
+                else "\"" + props.expressionToBeApplied + "\""
+            ),
             str(allColumnNames),
             str(props.columnNames),
             str(props.changeOutputFieldName).lower(),
