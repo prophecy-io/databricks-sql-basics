@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.11.dev0
+version: 0.0.11.dev1
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
@@ -168,6 +168,17 @@ sqlMacros:
     - .prophecy/ide/macros/evaluate_expression.json
     - macros/macros.yml
     createdAt: '2024-11-28 04:59:45'
+  .prophecy/metadata/sqlmacros/DataMasking:
+    name: DataMasking
+    macroType: expression
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/DataMasking.sql
+      - .prophecy/ide/macros/DataMasking.json
+      - macros/macros.yml
+      - gems/ToDo.py
+    createdAt: '2025-06-09 04:59:45'
 sqlSeeds: {}
 sqlSources: {}
 sqlUnreferencedSources: {}
