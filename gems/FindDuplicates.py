@@ -89,7 +89,13 @@ class FindDuplicates(MacroSpec):
 
         if condition is None:
             return diagnostics
-
+        if len(component.properties.columnNames) > 0 :
+            missingKeyColumns = [col for col in component.properties.columnNames if
+                                 col not in component.properties.schema]
+            if missingKeyColumns:
+                diagnostics.append(
+                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                )
         if condition != "between" and ((count_value is None) or (not count_value.isdigit())):
             diagnostics.append(
                 Diagnostic("component.properties.count_value", f"count should be a whole number. Right now, count is {count_value or 'None'}", SeverityLevelEnum.Error)
