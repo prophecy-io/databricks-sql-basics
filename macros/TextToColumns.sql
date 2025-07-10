@@ -19,7 +19,7 @@
     WITH source AS (
         SELECT *,
             split(
-                regexp_replace({{ columnName }}, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
+                regexp_replace(`{{ columnName }}`, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
                 '%%DELIM%%'
             ) AS tokens
         FROM {{ relation_name }}
@@ -31,10 +31,10 @@
             regexp_replace(trim(tokens[{{ i - 1 }}]), '^"|"$', '') AS {{ splitColumnPrefix }}_{{ i }}_{{ splitColumnSuffix }}{% if not loop.last or leaveExtraCharLastCol %}, {% endif %}
         {%- endfor %}
         {%- if leaveExtraCharLastCol %}
-            CASE 
-                WHEN size(tokens) >= {{ noOfColumns }} 
+            CASE
+                WHEN size(tokens) >= {{ noOfColumns }}
                     THEN array_join(slice(tokens, {{ noOfColumns }}, greatest(size(tokens) - {{ noOfColumns }} + 1, 0)), '{{ delimiter }}')
-                ELSE null 
+                ELSE null
             END AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
         {%- else %}
             tokens[{{ noOfColumns - 1 }}] AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
@@ -49,7 +49,7 @@
     FROM {{ relation_name }} r
     LATERAL VIEW explode(
         split(
-            if(r.{{ columnName }} IS NULL, '', r.{{ columnName }}),
+            if(r.`{{ columnName }}` IS NULL, '', r.`{{ columnName }}`),
             '{{ pattern }}'
         )
     ) s AS col
