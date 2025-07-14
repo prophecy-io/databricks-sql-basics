@@ -7,7 +7,6 @@
         schema=[]
 ) -%}
 
-    {# one reusable back-tick for identifier quoting #}
     {% set bt = "`" %}
 
     {%- if dataColumns and (nameColumn | length > 0) and (valueColumn | length > 0) -%}

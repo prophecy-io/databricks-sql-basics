@@ -20,7 +20,6 @@
         replaceNullTimeWith="1970-01-01 00:00:00"
 ) %}
 
-    {# a single back-tick we can reuse everywhere #}
     {% set bt = "`" %}
 
     {# ───────────── 1. cleansed_data CTE (row-level) ───────────── #}
@@ -39,7 +38,6 @@
         )
     {% endset %}
 
-    {# no column list? return everything, we’re done #}
     {% if columnNames | length == 0 %}
         {{ return(cleansed_cte ~ '\nSELECT * FROM cleansed_data') }}
     {% endif %}
