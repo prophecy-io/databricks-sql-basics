@@ -1,13 +1,17 @@
 {%- macro DataMasking(
     relation_name,
     columnNames,
+    remaining_columns,
     maskingMethod,
     upperCharSubstitute,
     lowerCharSubstitute,
     digitCharSubstitute,
     otherCharSubstitute,
     sha2BitLength,
-    combinedHash
+    maskedColumnAdditionMethod,
+    prefix_suffix_opt,
+    prefix_suffix_val,
+    combinedHashColumnName
 ) %}
 
     {{ log("Applying Masking-specific column operations", info=True) }}
@@ -40,27 +44,51 @@
                 {%- do args.append("otherChar => '" ~ otherCharSubstitute ~ "'") -%}
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
-            {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ column ~ "_mask") -%}
+            {%- if maskedColumnAdditionMethod == "inplace_substitute" -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ column) -%}
+            {%- elif prefix_suffix_opt == "Prefix" -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+            {%- else -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+            {%- endif -%}
         {% endfor %}
 
     {%- elif maskingMethod == "hash" -%}
-        {%- if combinedHash == "True" -%}
+        {%- if maskedColumnAdditionMethod == "combinedHash_substitute" -%}
             {%- set arg_string = columnNames | join(', ') -%}
-            {%- do withColumn_clause.append("hash(" ~ arg_string ~ ") AS aggregate_hash") -%}
-        {%- else -%}
+            {%- do withColumn_clause.append("hash(" ~ arg_string ~ ") AS " ~ combinedHashColumnName) -%}
+        {%- else  -%}
             {% for column in columnNames %}
-                {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ column ~ "_hash") -%}
+                {%- if maskedColumnAdditionMethod == "inplace_substitute" -%}
+                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ column) -%}
+                {%- elif prefix_suffix_opt == "Prefix" -%}
+                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- else -%}
+                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- endif -%}
             {% endfor %}
         {%- endif -%}
 
     {%- elif maskingMethod == "sha2" -%}
         {% for column in columnNames %}
-            {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2BitLength ~ ") AS " ~ column ~ "_sha2") -%}
+            {%- if maskedColumnAdditionMethod == "inplace_substitute" -%}
+                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2BitLength ~ ") AS " ~ column) -%}
+            {%- elif prefix_suffix_opt == "Prefix" -%}
+                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2BitLength ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+            {%- else -%}
+                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2BitLength ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+            {%- endif -%}
         {% endfor %}
 
     {%- else -%}
         {% for column in columnNames %}
-            {%- do withColumn_clause.append(maskingMethod ~ "(" ~ column ~ ") AS " ~ column ~ "_" ~ maskingMethod) -%}
+            {%- if maskedColumnAdditionMethod == "inplace_substitute" -%}
+                {%- do withColumn_clause.append(maskingMethod ~ "(" ~ column ~ ") AS " ~ column) -%}
+            {%- elif prefix_suffix_opt == "Prefix" -%}
+                {%- do withColumn_clause.append(maskingMethod ~ "(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+            {%- else -%}
+                {%- do withColumn_clause.append(maskingMethod ~ "(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+            {%- endif -%}
         {% endfor %}
 
     {%- endif -%}
@@ -73,9 +101,19 @@
                 SELECT *
                 FROM {{ relation_name }}
             )
-        {%- else -%}
+        {%- elif (maskedColumnAdditionMethod == "prefix_suffix_substitute") or (maskingMethod == "hash" and maskedColumnAdditionMethod == "combinedHash_substitute") -%}
             WITH final_cte AS (
                 SELECT *, {{ select_clause_sql }}
+                FROM {{ relation_name }}
+            )
+        {%- elif remaining_columns == "" -%}
+            WITH final_cte AS (
+                SELECT {{ select_clause_sql }}
+                FROM {{ relation_name }}
+            )
+        {%- else -%}
+            WITH final_cte AS (
+                SELECT {{ remaining_columns }}, {{ select_clause_sql }}
                 FROM {{ relation_name }}
             )
         {%- endif -%}
@@ -89,4 +127,3 @@
     {{ return(final_select_query) }}
 
 {%- endmacro -%}
-

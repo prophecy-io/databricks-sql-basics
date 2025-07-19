@@ -9,7 +9,7 @@ from prophecy.cb.ui.uispec import *
 
 class DataMasking(MacroSpec):
     name: str = "DataMasking"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "proj2"
     category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
@@ -26,7 +26,10 @@ class DataMasking(MacroSpec):
         digitCharSubstitute: str = ""
         otherCharSubstitute: str = ""
         sha2BitLength: str = ""
-        combinedHash: bool = False
+        prefixSuffixOption: str = "Prefix"
+        prefixSuffixToBeAdded: str = ""
+        combinedHashColumnName: str = ""
+        maskedColumnAdditionMethod: str = "inplace_substitute"
 
     def dialog(self) -> Dialog:
         mask_condition = Condition().ifEqual(
@@ -37,25 +40,51 @@ class DataMasking(MacroSpec):
             PropExpr("component.properties.maskingMethod"), StringExpr("hash")
         )
 
+        not_hash_condition = Condition().ifNotEqual(
+            PropExpr("component.properties.maskingMethod"), StringExpr("hash")
+        )
+
         sha2_condition = Condition().ifEqual(
             PropExpr("component.properties.maskingMethod"), StringExpr("sha2")
         )
 
         mask_params_ui = (
             StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(TextBox("upperChar substitute key").bindProperty("upperCharSubstitute").bindPlaceholder("default is 'X'. If set to NULL, upper case chars remain unmasked"))
-            .addElement(TextBox("lowerChar substitute key").bindProperty("lowerCharSubstitute").bindPlaceholder("default is 'x'. If set to NULL, lower case chars remain unmasked"))
-            .addElement(TextBox("digitChar substitute key").bindProperty("digitCharSubstitute").bindPlaceholder("default is 'n'. If set to NULL, digit chars remain unmasked"))
-            .addElement(TextBox("otherChar substitute key").bindProperty("otherCharSubstitute").bindPlaceholder(""))
+            .addElement(TextBox("Upper char substitute key(optional)").bindProperty("upperCharSubstitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character"))
+            .addElement(TextBox("Lower char substitute key(optional)").bindProperty("lowerCharSubstitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character"))
+            .addElement(TextBox("Digit char substitute key(optional)").bindProperty("digitCharSubstitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character"))
+            .addElement(TextBox("Other char substitute key(optional)").bindProperty("otherCharSubstitute").bindPlaceholder("character to replace all other characters with. Specify NULL to retain original character."))
         )
 
-        hash_params_ui = (
-            Checkbox("Apply a single hash to all the selected columns at once").bindProperty("combinedHash")
-        )
+        selectBox_nonHash = (RadioGroup("")
+                             .addOption("Substitute the new columns in place", "inplace_substitute",
+                                        description=("This option will substitute the original columns to have masked value with same name"))
+                             .addOption("Add new columns with a prefix/suffix attached", "prefix_suffix_substitute",
+                                        description="This option will keep the original columns intact and add new columns with added prefix/suffix to respective columns"
+                                        )
+                             .setOptionType("button")
+                             .setVariant("medium")
+                             .setButtonStyle("solid")
+                             .bindProperty("maskedColumnAdditionMethod")
+                             )
+        selectBox_Hash = (RadioGroup("")
+                          .addOption("Substitute the new columns in place", "inplace_substitute",
+                                     description=("This option will substitute the original columns to have masked value with same name"))
+                          .addOption("Add new columns with a prefix/suffix attached", "prefix_suffix_substitute",
+                                     description="This option will keep the original columns intact and add new columns with added prefix/suffix to respective columns"
+                                     )
+                          .addOption("Apply a single hash to all the selected columns at once", "combinedHash_substitute",
+                                     description="This option will apply a single hash to all the selected columns at once"
+                                     )
+                          .setOptionType("button")
+                          .setVariant("medium")
+                          .setButtonStyle("solid")
+                          .bindProperty("maskedColumnAdditionMethod")
+                          )
 
         sha2_params_ui = (
             StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(SelectBox("select the bit length").bindProperty("sha2BitLength").withDefault("")
+            .addElement(SelectBox("Select the bit length").bindProperty("sha2BitLength").withDefault("")
                         .addOption("224", "224")
                         .addOption("256", "256")
                         .addOption("384", "384")
@@ -74,7 +103,7 @@ class DataMasking(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select columns to applying mask on"))
+                            .addElement(TitleElement("Select columns to apply masking on"))
                             .addElement(
                                 SchemaColumnsDropdown("", appearance="minimal")
                                 .withMultipleSelection()
@@ -85,31 +114,66 @@ class DataMasking(MacroSpec):
                     )
                 )
                 .addElement(
-                    SelectBox("Choose your masking method")
-                    .bindProperty("maskingMethod")
-                    .withStyle({"width": "100%"})
-                    .withDefault("")
-                    .addOption("mask", "mask")
-                    .addOption("crc32", "crc32")
-                    .addOption("hash", "hash")
-                    .addOption("sha", "sha")
-                    .addOption("sha2", "sha2")
-                    .addOption("md5", "md5")
-                )
-                .addElement(
-                    mask_condition.then(
-                        mask_params_ui
+                    StepContainer()
+                    .addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%")
+                            .addElement(TitleElement("Select the custom masking options"))
+                            .addElement(
+                                SelectBox("Choose your masking method")
+                                .bindProperty("maskingMethod")
+                                .withStyle({"width": "100%"})
+                                .withDefault("")
+                                .addOption("mask", "mask")
+                                .addOption("crc32", "crc32")
+                                .addOption("hash", "hash")
+                                .addOption("sha", "sha")
+                                .addOption("sha2", "sha2")
+                                .addOption("md5", "md5")
+                            )
+                            .addElement(
+                                mask_condition.then(
+                                    mask_params_ui
+                                )
+                            )
+                            .addElement(
+                                sha2_condition.then(
+                                    sha2_params_ui
+                                )
+                            )
+                        )
                     )
                 )
                 .addElement(
-                    hash_condition.then(
-                        hash_params_ui
+                    StepContainer()
+                    .addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%")
+                            .addElement(TitleElement("Select the below options to name new columns"))
+                            .addElement(
+                                hash_condition.then(selectBox_Hash).otherwise(selectBox_nonHash)
+                            )
+                            .addElement(Condition().ifEqual(PropExpr("component.properties.maskedColumnAdditionMethod"), StringExpr("prefix_suffix_substitute")).then(
+                                StackLayout(height="100%").addElement(
+                                    ColumnsLayout(gap="1rem", height="100%")
+                                    .addColumn(
+                                        SelectBox("Select type").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefixSuffixOption"), "50%"
+                                    )
+                                    .addColumn(
+                                        TextBox("Enter the value").bindPlaceholder("Example: new_").bindProperty("prefixSuffixToBeAdded"), "50%"
+                                    )
+                                )
+                            )
+                            )
+                            .addElement(Condition().ifEqual(PropExpr("component.properties.maskedColumnAdditionMethod"), StringExpr("combinedHash_substitute")).then(
+                                TextBox("new column name for combined hash").bindPlaceholder("").bindProperty("combinedHashColumnName")
+                            )
+                            )
+                        )
                     )
-                )
-                .addElement(
-                    sha2_condition.then(
-                        sha2_params_ui
-                    )
+
                 )
             )
         )
@@ -128,6 +192,24 @@ class DataMasking(MacroSpec):
             if missingKeyColumns:
                 diagnostics.append(
                     Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                )
+        if component.properties.maskingMethod == "":
+            diagnostics.append(
+                Diagnostic("component.properties.maskingMethod", f"Select one masking method", SeverityLevelEnum.Error)
+            )
+        if component.properties.maskedColumnAdditionMethod == "prefix_suffix_substitute":
+            if component.properties.prefixSuffixOption == "":
+                diagnostics.append(
+                    Diagnostic("component.properties.prefixSuffixOption", f"Select one option out of Prefix/Suffix for new column names", SeverityLevelEnum.Error)
+                )
+            if component.properties.prefixSuffixToBeAdded == "":
+                diagnostics.append(
+                    Diagnostic("component.properties.prefixSuffixOption", f"Enter the prefix/suffix value to be added to new column", SeverityLevelEnum.Error)
+                )
+        if component.properties.maskedColumnAdditionMethod == "combinedHash_substitute":
+            if component.properties.combinedHashColumnName == "":
+                diagnostics.append(
+                    Diagnostic("component.properties.combinedHashColumnName", f"Enter the new column name for combined hash", SeverityLevelEnum.Error)
                 )
         if component.properties.maskingMethod == "sha2" and component.properties.sha2BitLength == "":
             diagnostics.append(
@@ -192,6 +274,8 @@ class DataMasking(MacroSpec):
         # Generate the actual macro call given the component's state
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
         resolved_macro_name = f"{self.projectName}.{self.name}"
+        schema_columns = [js['name'] for js in json.loads(props.schema)]
+        remaining_columns = ", ".join(list(set(schema_columns) - set(props.columnNames)))
 
         def safe_str(val):
             if val is None or val == "":
@@ -203,13 +287,17 @@ class DataMasking(MacroSpec):
         arguments = [
             safe_str(table_name),
             safe_str(props.columnNames),
+            safe_str(remaining_columns),
             safe_str(props.maskingMethod),
             safe_str(props.upperCharSubstitute if props.upperCharSubstitute.upper() != "NULL" else props.upperCharSubstitute.upper()),
             safe_str(props.lowerCharSubstitute if props.lowerCharSubstitute.upper() != "NULL" else props.lowerCharSubstitute.upper()),
             safe_str(props.digitCharSubstitute if props.digitCharSubstitute.upper() != "NULL" else props.digitCharSubstitute.upper()),
             safe_str(props.otherCharSubstitute if props.otherCharSubstitute.upper() != "NULL" else props.otherCharSubstitute.upper()),
             safe_str(props.sha2BitLength),
-            safe_str(props.combinedHash)
+            safe_str(props.maskedColumnAdditionMethod),
+            safe_str(props.prefixSuffixOption),
+            safe_str(props.prefixSuffixToBeAdded),
+            safe_str(props.combinedHashColumnName)
         ]
 
         params = ",".join(arguments)
@@ -228,7 +316,10 @@ class DataMasking(MacroSpec):
             digitCharSubstitute=parametersMap.get('digitCharSubstitute'),
             otherCharSubstitute=parametersMap.get('otherCharSubstitute'),
             sha2BitLength=parametersMap.get('sha2BitLength'),
-            combinedHash=parametersMap.get('combinedHash')
+            maskedColumnAdditionMethod=parametersMap.get('maskedColumnAdditionMethod'),
+            prefixSuffixOption=parametersMap.get('prefixSuffixOption'),
+            prefixSuffixToBeAdded=parametersMap.get('prefixSuffixToBeAdded'),
+            combinedHashColumnName=parametersMap.get('combinedHashColumnName')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -246,8 +337,11 @@ class DataMasking(MacroSpec):
                 MacroParameter("digitCharSubstitute", str(properties.digitCharSubstitute)),
                 MacroParameter("otherCharSubstitute", str(properties.otherCharSubstitute)),
                 MacroParameter("sha2BitLength", str(properties.sha2BitLength)),
-                MacroParameter("combinedHash", str(properties.combinedHash)),
-            ],
+                MacroParameter("maskedColumnAdditionMethod", str(properties.maskedColumnAdditionMethod)),
+                MacroParameter("prefixSuffixOption", str(properties.prefixSuffixOption)),
+                MacroParameter("prefixSuffixToBeAdded", str(properties.prefixSuffixToBeAdded)),
+                MacroParameter("combinedHashColumnName", str(properties.combinedHashColumnName))
+            ]
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
