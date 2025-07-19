@@ -164,10 +164,10 @@ sqlMacros:
     description: null
     author: g.ayush@prophecy.io
     files:
-      - macros/DataEncoder.sql
+      - macros/DataEncoderDecoder.sql
       - .prophecy/ide/macros/DataEncoder.json
       - macros/macros.yml
-      - gems/DataEncoder.py
+      - gems/DataEncoderDecoder.py
     createdAt: '2025-07-04 04:59:45'
   .prophecy/metadata/sqlmacros/evaluate_expression:
     name: evaluate_expression
