@@ -9,7 +9,7 @@ from prophecy.cb.ui.uispec import *
 
 class DataMasking(MacroSpec):
     name: str = "DataMasking"
-    projectName: str = "proj2"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
