@@ -1,8 +1,8 @@
 {% macro FindDuplicates(
     relation_name,
-    columnNames,
+    column_names,
     column_group_condition,
-    outputType,
+    output_type,
     grouped_count,
     lower_limit,
     upper_limit
@@ -10,14 +10,14 @@
 
     {{ log("Applying Window Function on selected columns", info=True) }}
 
-    {%- if columnNames == [] and column_group_condition == "" and grouped_count == "" and lower_limit == "" and upper_limit == "" -%}
+    {%- if column_names == [] and column_group_condition == "" and grouped_count == "" and lower_limit == "" and upper_limit == "" -%}
         {{ return("SELECT *  FROM " ~ relation_name) }}
     {%- endif -%}
 
-    {%- set partition_columns_str = columnNames | join(', ') -%}
+    {%- set partition_columns_str = column_names | join(', ') -%}
 
     {%- set select_window_cte -%}
-        {%- if outputType == "Custom_output" -%}
+        {%- if output_type == "Custom_output" -%}
             WITH select_cte1 AS(
                 SELECT *, COUNT(*) OVER(PARTITION BY {{ partition_columns_str }}) AS group_count FROM {{ relation_name }}
             )
@@ -29,7 +29,7 @@
     {%- endset -%}
 
     {%- set select_window_filter -%}
-        {%- if outputType == "Custom_output" -%}
+        {%- if output_type == "Custom_output" -%}
             {%- if column_group_condition == "between" -%}
                 SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count BETWEEN {{ lower_limit }} AND {{ upper_limit }}
             {%-elif column_group_condition == "equal_to" -%}
@@ -41,9 +41,9 @@
             {%-elif column_group_condition == "greater_than" -%}
                 SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count > {{ grouped_count }}
             {%- endif -%}
-        {%- elif outputType == "U_output" -%}
+        {%- elif output_type == "U_output" -%}
             SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num = 1
-        {%- elif outputType == "D_output" -%}
+        {%- elif output_type == "D_output" -%}
             SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num > 1
         {%- endif -%}
     {%- endset -%}

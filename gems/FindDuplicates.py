@@ -21,12 +21,12 @@ class FindDuplicates(MacroSpec):
         # properties for the component with default values
         relation_name: List[str] = field(default_factory=list)
         schema: str = ''
-        columnNames: List[str] = field(default_factory=list)
+        column_names: List[str] = field(default_factory=list)
         column_group_condition: str = ""
         grouped_count: str = ""
         lower_limit: str = ""
         upper_limit: str = ""
-        outputType: str = "U_output"
+        output_type: str = "U_output"
 
     def dialog(self) -> Dialog:
         between_condition = Condition().ifEqual(
@@ -45,7 +45,7 @@ class FindDuplicates(MacroSpec):
                      .setOptionType("button")
                      .setVariant("medium")
                      .setButtonStyle("solid")
-                     .bindProperty("outputType")
+                     .bindProperty("output_type")
                      )
 
         return Dialog("FindDuplicates").addElement(
@@ -64,14 +64,14 @@ class FindDuplicates(MacroSpec):
                                 SchemaColumnsDropdown("", appearance="minimal")
                                 .withMultipleSelection()
                                 .bindSchema("component.ports.inputs[0].schema")
-                                .bindProperty("columnNames")
+                                .bindProperty("column_names")
                             )
                         )
                     )
                 )
                 .addElement(selectBox)
                 .addElement(
-                    Condition().ifEqual(PropExpr("component.properties.outputType"), StringExpr("Custom_output")).then(
+                    Condition().ifEqual(PropExpr("component.properties.output_type"), StringExpr("Custom_output")).then(
                         StepContainer()
                         .addElement(
                             Step()
@@ -111,18 +111,18 @@ class FindDuplicates(MacroSpec):
         # Validate the component's state
         diagnostics = super(FindDuplicates, self).validate(context, component)
 
-        if len(component.properties.columnNames) == 0:
+        if len(component.properties.column_names) == 0:
             diagnostics.append(
-                Diagnostic("component.properties.columnNames", f"Select atleast one column to apply masking on", SeverityLevelEnum.Error)
+                Diagnostic("component.properties.column_names", f"Select atleast one column to apply masking on", SeverityLevelEnum.Error)
             )
-        if len(component.properties.columnNames) > 0 :
-            missingKeyColumns = [col for col in component.properties.columnNames if
+        if len(component.properties.column_names) > 0 :
+            missingKeyColumns = [col for col in component.properties.column_names if
                                  col not in component.properties.schema]
             if missingKeyColumns:
                 diagnostics.append(
-                    Diagnostic("component.properties.columnNames", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
+                    Diagnostic("component.properties.column_names", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
                 )
-        if component.properties.outputType == "Custom_output":
+        if component.properties.output_type == "Custom_output":
             if component.properties.column_group_condition == "":
                 diagnostics.append(
                     Diagnostic("component.properties.column_group_condition", f"Select one group condition from the given dropdown.", SeverityLevelEnum.Error)
@@ -184,9 +184,9 @@ class FindDuplicates(MacroSpec):
 
         arguments = [
             "'" + table_name + "'",
-            safe_str(props.columnNames),
+            safe_str(props.column_names),
             safe_str(props.column_group_condition),
-            safe_str(props.outputType),
+            safe_str(props.output_type),
             safe_str(props.grouped_count),
             safe_str(props.lower_limit),
             safe_str(props.upper_limit)
@@ -201,12 +201,12 @@ class FindDuplicates(MacroSpec):
         return FindDuplicates.FindDuplicatesProperties(
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
-            columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
+            column_names=json.loads(parametersMap.get('column_names').replace("'", '"')),
             column_group_condition=parametersMap.get('column_group_condition'),
             grouped_count=parametersMap.get('grouped_count'),
             lower_limit=parametersMap.get('lower_limit'),
             upper_limit=parametersMap.get('upper_limit'),
-            outputType=parametersMap.get('outputType')
+            output_type=parametersMap.get('output_type')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -217,12 +217,12 @@ class FindDuplicates(MacroSpec):
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("columnNames", json.dumps(properties.columnNames)),
+                MacroParameter("column_names", json.dumps(properties.column_names)),
                 MacroParameter("column_group_condition", str(properties.column_group_condition)),
                 MacroParameter("grouped_count", str(properties.grouped_count)),
                 MacroParameter("lower_limit", str(properties.lower_limit)),
                 MacroParameter("upper_limit", str(properties.upper_limit)),
-                MacroParameter("outputType", str(properties.outputType))
+                MacroParameter("output_type", str(properties.output_type))
             ],
         )
 
