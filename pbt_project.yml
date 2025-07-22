@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.11.dev1
+version: 0.0.11
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
