@@ -27,7 +27,7 @@ class CountRecords(MacroSpec):
                                       "count_non_null_records",
                                       description="This option will return the total row count excluding NULLs for the selected column(s)"
                                       )
-                           .addOption("Count distinct records from input dataframe for selected column()s",
+                           .addOption("Count distinct records from input dataframe for selected column(s)",
                                       "count_distinct_records",
                                       description="This option will return the distinct row count excluding NULLs for the selected column(s)"
                                       )
