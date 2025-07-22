@@ -1,10 +1,8 @@
-from dataclasses import dataclass
 import dataclasses
-from collections import defaultdict
-from prophecy.cb.sql.Component import *
+import json
+
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
-import json
 
 
 class CountRecords(MacroSpec):
@@ -22,11 +20,16 @@ class CountRecords(MacroSpec):
         count_method: str = "count_all_records"
 
     def dialog(self) -> Dialog:
-        count_radio_box = (RadioGroup("")
-                           .addOption("Count all records from input dataframe", "count_all_records",
-                                      description=("This option will return the total row count of input table including NULLs"))
-                           .addOption("Count records from input dataframe for a specific column", "count_non_null_records",
-                                      description="This option will return the total row count of input table excluding NULLs for the selected columns"
+        count_radio_box = (RadioGroup("Select count option")
+                           .addOption("Count number of records in input dataframe", "count_all_records",
+                                      description=("This option will return the total row count of input table"))
+                           .addOption("Count non-null records from input dataframe for selected column(s)",
+                                      "count_non_null_records",
+                                      description="This option will return the total row count excluding NULLs for the selected column(s)"
+                                      )
+                           .addOption("Count distinct records from input dataframe for selected column()s",
+                                      "count_distinct_records",
+                                      description="This option will return the distinct row count excluding NULLs for the selected column(s)"
                                       )
                            .setOptionType("button")
                            .setVariant("medium")
@@ -36,31 +39,34 @@ class CountRecords(MacroSpec):
 
         dialog = Dialog("count_records_dialog_box").addElement(
             ColumnsLayout(gap="1rem", height="100%")
-            .addColumn(Ports(), "content")
-            .addColumn(
+                .addColumn(Ports(), "content")
+                .addColumn(
                 StackLayout(height="100%")
-                .addElement(
-                    StepContainer()
                     .addElement(
-                        Step()
+                    StepContainer()
                         .addElement(
+                        Step()
+                            .addElement(
                             count_radio_box
                         )
                     )
                 )
-                .addElement(
-                    Condition().ifEqual(PropExpr("component.properties.count_method"), StringExpr("count_non_null_records")).then(
+                    .addElement(
+                    Condition().ifNotEqual(PropExpr("component.properties.count_method"),
+                                        StringExpr("count_all_records")).then(
                         StepContainer()
-                        .addElement(
-                            Step()
                             .addElement(
-                                Condition().ifEqual(
-                                    PropExpr("component.properties.count_method"), StringExpr("count_non_null_records")
+                            Step()
+                                .addElement(
+                                Condition().ifNotEqual(
+                                    PropExpr("component.properties.count_method"), StringExpr("count_all_records")
                                 ).then(
-                                    SchemaColumnsDropdown("Select Columns", appearance="minimal")
-                                    .withMultipleSelection()
-                                    .bindSchema("component.ports.inputs[0].schema")
-                                    .bindProperty("column_names")
+                                    StackLayout(height="100%")
+                                        .addElement(TitleElement("Select columns to count"))
+                                        .addElement(SchemaColumnsDropdown("", appearance="minimal")
+                                                    .withMultipleSelection()
+                                                    .bindSchema("component.ports.inputs[0].schema")
+                                                    .bindProperty("column_names"))
                                 )
                             )
                         )
@@ -76,14 +82,17 @@ class CountRecords(MacroSpec):
         if component.properties.count_method == "count_non_null_records":
             if len(component.properties.column_names) == 0:
                 diagnostics.append(
-                    Diagnostic("component.properties.column_names", f"Select atleast one column to get count", SeverityLevelEnum.Error)
+                    Diagnostic("component.properties.column_names", f"Select atleast one column to get count",
+                               SeverityLevelEnum.Error)
                 )
-            elif len(component.properties.column_names) > 0 :
+            elif len(component.properties.column_names) > 0:
                 missingKeyColumns = [col for col in component.properties.column_names if
                                      col not in component.properties.schema]
                 if missingKeyColumns:
                     diagnostics.append(
-                        Diagnostic("component.properties.column_names", f"Selected columns {missingKeyColumns} are not present in input schema - {component.properties.schema}.", SeverityLevelEnum.Error)
+                        Diagnostic("component.properties.column_names",
+                                   f"Selected columns {missingKeyColumns} are not present in input schema - {component.properties.schema}.",
+                                   SeverityLevelEnum.Error)
                     )
         return diagnostics
 
@@ -149,7 +158,6 @@ class CountRecords(MacroSpec):
             column_names=json.loads(parametersMap.get('column_names').replace("'", '"')),
             count_method=parametersMap.get('count_method')
         )
-
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # Convert component's state to default macro property representation
