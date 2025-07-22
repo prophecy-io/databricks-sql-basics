@@ -50,10 +50,10 @@ class DataMasking(MacroSpec):
 
         mask_params_ui = (
             StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(TextBox("Upper char substitute key(optional)").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character"))
-            .addElement(TextBox("Lower char substitute key(optional)").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character"))
-            .addElement(TextBox("Digit char substitute key(optional)").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character"))
-            .addElement(TextBox("Other char substitute key(optional)").bindProperty("other_char_substitute").bindPlaceholder("character to replace all other characters with. Specify NULL to retain original character."))
+            .addElement(TextBox("Uppercase character replacement (optional)").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character"))
+            .addElement(TextBox("Lowercase character replacement (optional)").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character"))
+            .addElement(TextBox("Digit replacement (optional)").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character"))
+            .addElement(TextBox("Special character replacement (optional)").bindProperty("other_char_substitute").bindPlaceholder("Default value is NULL. Specify NULL to retain original character."))
         )
 
         selectBox_nonHash = (RadioGroup("")
@@ -119,18 +119,18 @@ class DataMasking(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select the custom masking options"))
+                            .addElement(TitleElement("Masking configuration"))
                             .addElement(
-                                SelectBox("Choose your masking method")
+                                SelectBox("Select masking strategy")
                                 .bindProperty("masking_method")
                                 .withStyle({"width": "100%"})
                                 .withDefault("")
-                                .addOption("mask", "mask")
-                                .addOption("crc32", "crc32")
                                 .addOption("hash", "hash")
                                 .addOption("sha", "sha")
                                 .addOption("sha2", "sha2")
                                 .addOption("md5", "md5")
+                                .addOption("mask", "mask")
+                                .addOption("crc32", "crc32")
                             )
                             .addElement(
                                 mask_condition.then(
@@ -159,7 +159,7 @@ class DataMasking(MacroSpec):
                                 StackLayout(height="100%").addElement(
                                     ColumnsLayout(gap="1rem", height="100%")
                                     .addColumn(
-                                        SelectBox("Select type").addOption("Prefix", "Prefix").addOption("Suffix", "Suffix").bindProperty("prefix_suffix_option"), "50%"
+                                        SelectBox("Select type").addOption("prefix", "Prefix").addOption("suffix", "Suffix").bindProperty("prefix_suffix_option"), "50%"
                                     )
                                     .addColumn(
                                         TextBox("Enter the value").bindPlaceholder("Example: new_").bindProperty("prefix_suffix_added"), "50%"
