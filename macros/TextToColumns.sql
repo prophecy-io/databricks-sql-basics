@@ -12,14 +12,17 @@
 
 {# 
   Build the regex pattern for matching the delimiter.
-  Adjust the pattern as needed for your use case.
 #}
 {%- set pattern = delimiter -%}
+
+{# Helper to quote column names inline #}
+{%- set quote_char = '`' -%}
+
 {%- if split_strategy == 'splitColumns' -%}
     WITH source AS (
         SELECT *,
             split(
-                regexp_replace({{ columnName }}, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
+                regexp_replace(`{{ columnName }}`, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
                 '%%DELIM%%'
             ) AS tokens
         FROM {{ relation_name }}
@@ -28,16 +31,17 @@
     SELECT *,
         {# Extract tokens positionally (Spark arrays are 0-indexed) #}
         {%- for i in range(1, noOfColumns) %}
-            regexp_replace(trim(tokens[{{ i - 1 }}]), '^"|"$', '') AS {{ splitColumnPrefix }}_{{ i }}_{{ splitColumnSuffix }}{% if not loop.last or leaveExtraCharLastCol %}, {% endif %}
+            regexp_replace(trim(tokens[{{ i - 1 }}]), '^"|"$', '')
+            AS {{ quote_char ~ splitColumnPrefix ~ '_' ~ i ~ '_' ~ splitColumnSuffix ~ quote_char }}{% if not loop.last or leaveExtraCharLastCol %}, {% endif %}
         {%- endfor %}
         {%- if leaveExtraCharLastCol %}
-            CASE 
-                WHEN size(tokens) >= {{ noOfColumns }} 
+            CASE
+                WHEN size(tokens) >= {{ noOfColumns }}
                     THEN array_join(slice(tokens, {{ noOfColumns }}, greatest(size(tokens) - {{ noOfColumns }} + 1, 0)), '{{ delimiter }}')
-                ELSE null 
-            END AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
+                ELSE null
+            END AS {{ quote_char ~ splitColumnPrefix ~ '_' ~ noOfColumns ~ '_' ~ splitColumnSuffix ~ quote_char }}
         {%- else %}
-            tokens[{{ noOfColumns - 1 }}] AS {{ splitColumnPrefix }}_{{ noOfColumns }}_{{ splitColumnSuffix }}
+            tokens[{{ noOfColumns - 1 }}] AS {{ quote_char ~ splitColumnPrefix ~ '_' ~ noOfColumns ~ '_' ~ splitColumnSuffix ~ quote_char }}
         {%- endif %}
     FROM source
     )
@@ -45,11 +49,11 @@
 
 {%- elif split_strategy == 'splitRows' -%}
     SELECT r.*,
-        trim(regexp_replace(s.col, '[{}_]', ' ')) AS {{ splitRowsColumnName }}
+        trim(regexp_replace(s.col, '[{}_]', ' ')) AS {{ quote_char ~ splitRowsColumnName ~ quote_char }}
     FROM {{ relation_name }} r
     LATERAL VIEW explode(
         split(
-            if(r.{{ columnName }} IS NULL, '', r.{{ columnName }}),
+            if(r.`{{ columnName }}` IS NULL, '', r.`{{ columnName }}`),
             '{{ pattern }}'
         )
     ) s AS col
