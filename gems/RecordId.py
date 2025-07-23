@@ -82,33 +82,38 @@ class RecordId(MacroSpec):
             ],
         )
 
-        generationMethod = (Condition()
-            .ifEqual(
-            PropExpr("component.properties.method"),
-            StringExpr("incremental_id"),
+        generationMethod = (
+            Condition()
+                .ifEqual(
+                PropExpr("component.properties.method"),
+                StringExpr("incremental_id"),
+            )
+                .then(
+                StepContainer().addElement(
+                    Step().addElement(
+                        StackLayout(height="100%").addElement(
+                            RadioGroup("Record ID Generation Scope")
+                                .addOption(
+                                "Across entire table",
+                                "tableLevel",
+                                description=(
+                                    "Generate a unique record ID for each row across the full dataset (no grouping)."
+                                ),
+                            )
+                                .addOption(
+                                "Within each group",
+                                "groupLevel",
+                                description="Generate a unique record ID within each group defined by selected column(s).",
+                            )
+                                .setOptionType("button")
+                                .setVariant("medium")
+                                .setButtonStyle("solid")
+                                .bindProperty("generationMethod")
+                        )
+                    )
+                )
+            )
         )
-            .then(
-            StepContainer().addElement(
-                Step().addElement(
-                    StackLayout(height="100%").addElement(
-            RadioGroup("Record ID Generation Scope")
-                .addOption(
-                "Across entire table",
-                "tableLevel",
-                description=(
-                    "Generate a unique record ID for each row across the full dataset (no grouping)."
-                ),
-            )
-                .addOption(
-                "Within each group",
-                "groupLevel",
-                description="Generate a unique record ID within each group defined by selected column(s).",
-            )
-                .setOptionType("button")
-                .setVariant("medium")
-                .setButtonStyle("solid")
-                .bindProperty("generationMethod")
-        )))))
 
         return Dialog("Macro").addElement(
             ColumnsLayout(gap="1rem", height="100%")
@@ -175,7 +180,9 @@ class RecordId(MacroSpec):
                         StepContainer().addElement(
                             Step().addElement(
                                 StackLayout(height="100%")
-                                    .addElement(TitleElement("Configure Grouping and Sorting"))
+                                    .addElement(
+                                    TitleElement("Configure Grouping and Sorting")
+                                )
                                     .addElement(TitleElement("Group By Columns"))
                                     .addElement(
                                     SchemaColumnsDropdown("")
@@ -183,7 +190,11 @@ class RecordId(MacroSpec):
                                         .bindSchema("component.ports.inputs[0].schema")
                                         .bindProperty("groupByColumnNames")
                                 )
-                                    .addElement(TitleElement("Order rows within each group (Optional)"))
+                                    .addElement(
+                                    TitleElement(
+                                        "Order rows within each group (Optional)"
+                                    )
+                                )
                                     .addElement(order_by_table.bindProperty("orders"))
                             )
                         )
@@ -254,8 +265,13 @@ class RecordId(MacroSpec):
             newState.properties, relation_name=relation_name
         )
 
-        if oldState.properties.method == "incremental_id" and newState.properties.method == "uuid":
-            return newState.bindProperties(dataclasses.replace(newProperties, generationMethod="tableLevel"))
+        if (
+                oldState.properties.method == "incremental_id"
+                and newState.properties.method == "uuid"
+        ):
+            return newState.bindProperties(
+                dataclasses.replace(newProperties, generationMethod="tableLevel")
+            )
 
         return newState.bindProperties(newProperties)
 
