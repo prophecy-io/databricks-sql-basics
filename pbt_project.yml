@@ -159,6 +159,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/CountRecords.py
     createdAt: '2025-07-22 04:59:45'
+  .prophecy/metadata/sqlmacros/RecordId:
+    name: RecordId
+    macroType: query
+    description: null
+    author: adak.debashis@prophecy.io
+    files:
+      - macros/RecordId.sql
+      - .prophecy/ide/macros/RecordId.json
+      - macros/macros.yml
+      - gems/RecordId.py
+    createdAt: '2025-07-01 04:59:45'
   .prophecy/metadata/sqlmacros/generate_schema_name:
     name: generate_schema_name
     macroType: expression
