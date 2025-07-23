@@ -148,6 +148,17 @@ sqlMacros:
       - macros/macros.yml
       - gems/ToDo.py
     createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/CountRecords:
+    name: CountRecords
+    macroType: query
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/CountRecords.sql
+      - .prophecy/ide/macros/CountRecords.json
+      - macros/macros.yml
+      - gems/CountRecords.py
+    createdAt: '2025-07-22 04:59:45'
   .prophecy/metadata/sqlmacros/RecordId:
     name: RecordId
     macroType: query
