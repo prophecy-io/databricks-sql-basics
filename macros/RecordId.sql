@@ -5,6 +5,7 @@
         incremental_id_type,
         incremental_id_size,
         incremental_id_starting_val,
+        generationMethod,
         position,
         groupByColumnNames,
         orderByRules= []
@@ -35,12 +36,14 @@
 {%- else -%}
     {% set rn_expr %}
         row_number() over (
-            {% if has_group %}
+            {% if generationMethod == 'groupLevel' and has_group %}
                 partition by {{ groupByColumnNames | join(', ') }}
             {% endif %}
-            {% if has_order %}
+            {% if generationMethod == 'groupLevel' and has_order %}
                 order by {{ order_by_clause }}
-            {% else %}
+            {% elif generationMethod == 'groupLevel' %}
+                order by 1
+            {% elif generationMethod == 'tableLevel' %}
                 order by 1
             {% endif %}
         ) + {{ incremental_id_starting_val }} - 1
