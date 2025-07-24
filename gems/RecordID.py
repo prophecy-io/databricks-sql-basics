@@ -123,7 +123,7 @@ class RecordID(MacroSpec):
                     .addElement(
                     SelectBox("Record Id generation method")
                         .addOption("UUID", "uuid")
-                        .addOption("Incremental Id", "incremental_id")
+                        .addOption("Incremental ID", "incremental_id")
                         .bindProperty("method")
                 )
                     .addElement(
