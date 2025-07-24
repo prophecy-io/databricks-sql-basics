@@ -17,14 +17,14 @@ class OrderByRule:
     sortType: str = "asc"
 
 
-class RecordId(MacroSpec):
-    name: str = "RecordId"
+class RecordID(MacroSpec):
+    name: str = "RecordID"
     projectName: str = "DatabricksSqlBasics"
     category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
-    class RecordIdProperties(MacroProperties):
+    class RecordIDProperties(MacroProperties):
         # properties for the component with default values
         method: str = "incremental_id"
         incremental_id_column_name: str = "RecordID"
@@ -205,7 +205,7 @@ class RecordId(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        diagnostics = super(RecordId, self).validate(context, component)
+        diagnostics = super(RecordID, self).validate(context, component)
         props = component.properties
 
         # ── 1 · OrderBy grid -----------------------------------------------------
@@ -275,7 +275,7 @@ class RecordId(MacroSpec):
 
         return newState.bindProperties(newProperties)
 
-    def apply(self, props: RecordIdProperties) -> str:
+    def apply(self, props: RecordIDProperties) -> str:
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
@@ -310,7 +310,7 @@ class RecordId(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        return RecordId.RecordIdProperties(
+        return RecordID.RecordIDProperties(
             relation_name=parametersMap.get("relation_name"),
             method=parametersMap.get("method"),
             incremental_id_column_name=parametersMap.get("incremental_id_column_name"),

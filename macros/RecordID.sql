@@ -1,4 +1,4 @@
-{%- macro RecordId(
+{%- macro RecordID(
         relation_name,
         method,
         record_id_column_name,

@@ -273,7 +273,7 @@ macros:
       type: "value"
       description: "{\"ProphecyType\": \"value\"}"
   macroType: "query"
-- name: "RecordId"
+- name: "RecordID"
   arguments:
     - name: "relation_name"
       type: "value"
