@@ -103,7 +103,7 @@ class DataMasking(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select columns to apply masking on"))
+                            .addElement(TitleElement("Select masking columns"))
                             .addElement(
                                 SchemaColumnsDropdown("", appearance="minimal")
                                 .withMultipleSelection()
@@ -151,7 +151,7 @@ class DataMasking(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select the below options to name new columns"))
+                            .addElement(TitleElement("Masked column options"))
                             .addElement(
                                 hash_condition.then(selectBox_Hash).otherwise(selectBox_nonHash)
                             )
@@ -182,13 +182,19 @@ class DataMasking(MacroSpec):
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
         diagnostics = super(DataMasking, self).validate(context, component)
+
+        schema_columns = []
+        schema_js = json.loads(component.properties.schema)
+        for js in schema_js:
+            schema_columns.append(js["name"])
+
         if len(component.properties.column_names) == 0:
             diagnostics.append(
                 Diagnostic("component.properties.column_names", f"Select atleast one column to apply masking on", SeverityLevelEnum.Error)
             )
         elif len(component.properties.column_names) > 0 :
             missingKeyColumns = [col for col in component.properties.column_names if
-                                 col not in component.properties.schema]
+                                 col not in schema_columns]
             if missingKeyColumns:
                 diagnostics.append(
                     Diagnostic("component.properties.column_names", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
@@ -354,6 +360,6 @@ class DataMasking(MacroSpec):
             schema=json.dumps(fields_array),
             relation_name=relation_name
         )
-        return component.bindProperties(newProperties)    
+        return component.bindProperties(newProperties)
 
 
