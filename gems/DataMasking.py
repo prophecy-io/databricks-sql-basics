@@ -186,7 +186,7 @@ class DataMasking(MacroSpec):
         schema_columns = []
         schema_js = json.loads(component.properties.schema)
         for js in schema_js:
-            schema_columns.append(js["name"])
+            schema_columns.append(js["name"].lower())
 
         if len(component.properties.column_names) == 0:
             diagnostics.append(
@@ -194,7 +194,7 @@ class DataMasking(MacroSpec):
             )
         elif len(component.properties.column_names) > 0 :
             missingKeyColumns = [col for col in component.properties.column_names if
-                                 col not in schema_columns]
+                                 col.lower() not in schema_columns]
             if missingKeyColumns:
                 diagnostics.append(
                     Diagnostic("component.properties.column_names", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
