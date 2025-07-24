@@ -17,7 +17,7 @@
     {%- set partition_columns_str = column_names | join(', ') -%}
 
     {%- set select_window_cte -%}
-        {%- if output_type == "Custom_output" -%}
+        {%- if output_type == "custom" -%}
             WITH select_cte1 AS(
                 SELECT *, COUNT(*) OVER(PARTITION BY {{ partition_columns_str }}) AS group_count FROM {{ relation_name }}
             )
@@ -29,7 +29,7 @@
     {%- endset -%}
 
     {%- set select_window_filter -%}
-        {%- if output_type == "Custom_output" -%}
+        {%- if output_type == "custom" -%}
             {%- if column_group_condition == "between" -%}
                 SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count BETWEEN {{ lower_limit }} AND {{ upper_limit }}
             {%-elif column_group_condition == "equal_to" -%}
@@ -41,9 +41,9 @@
             {%-elif column_group_condition == "greater_than" -%}
                 SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count > {{ grouped_count }}
             {%- endif -%}
-        {%- elif output_type == "U_output" -%}
+        {%- elif output_type == "unique" -%}
             SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num = 1
-        {%- elif output_type == "D_output" -%}
+        {%- elif output_type == "duplicate" -%}
             SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num > 1
         {%- endif -%}
     {%- endset -%}
