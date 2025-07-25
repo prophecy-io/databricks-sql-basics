@@ -19,7 +19,7 @@ class OrderByRule:
 
 class FindDuplicates(MacroSpec):
     name: str = "FindDuplicates"
-    projectName: str = "proj2"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
