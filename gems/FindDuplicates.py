@@ -19,7 +19,7 @@ class OrderByRule:
 
 class FindDuplicates(MacroSpec):
     name: str = "FindDuplicates"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "proj2"
     category: str = "Prepare"
     minNumOfInputPorts: int = 1
 
@@ -47,20 +47,20 @@ class FindDuplicates(MacroSpec):
                     "Order By Columns",
                     "expression.expression",
                     ExpressionBox(ignoreTitle=True, language="sql")
-                        .bindPlaceholders()
-                        .withSchemaSuggestions()
-                        .bindLanguage("${record.expression.format}"),
-                ),
+                    .bindPlaceholders()
+                    .withSchemaSuggestions()
+                    .bindLanguage("${record.expression.format}"),
+                    ),
                 Column(  # 2nd column – ASC / DESC etc.
                     "Sort strategy",
                     "sortType",
                     SelectBox("")
-                        .addOption("ascending nulls first", "asc")
-                        .addOption("ascending nulls last", "asc_nulls_last")
-                        .addOption("descending nulls first", "desc_nulls_first")
-                        .addOption("descending nulls last", "desc"),
+                    .addOption("ascending nulls first", "asc")
+                    .addOption("ascending nulls last", "asc_nulls_last")
+                    .addOption("descending nulls first", "desc_nulls_first")
+                    .addOption("descending nulls last", "desc"),
                     width="25%",
-                ),
+                    ),
             ],
         )
 
@@ -69,15 +69,15 @@ class FindDuplicates(MacroSpec):
                 Step().addElement(
                     StackLayout(height="100%").addElement(
                         SelectBox("Unique rows generation scope")
-                            .addOption(
+                        .addOption(
                             "Uniqueness across all columns",
                             "allCols"
                         )
-                            .addOption(
+                        .addOption(
                             "Uniqueness across selected columns",
                             "selectedCols"
                         )
-                            .bindProperty("generationMethod")
+                        .bindProperty("generationMethod")
                     )
                 )
             )
@@ -105,55 +105,54 @@ class FindDuplicates(MacroSpec):
 
         return Dialog("FindDuplicates").addElement(
             ColumnsLayout(gap="1rem", height="100%")
-                .addColumn(Ports(), "content")
-                .addColumn(
+            .addColumn(Ports(), "content")
+            .addColumn(
                 StackLayout(height="100%")
-                    .addElement(generationMethod)
-                    .addElement(
+                .addElement(generationMethod)
+                .addElement(
                     Condition()
-                        .ifEqual(
+                    .ifEqual(
                         PropExpr("component.properties.generationMethod"),
-                        StringExpr("selectedCols"),
-                    )
-                        .then(
+                        StringExpr("selectedCols")
+                    ).then(
                         StepContainer().addElement(
                             Step().addElement(
                                 StackLayout(height="100%")
-                                    .addElement(
+                                .addElement(
                                     TitleElement("Configure Grouping and Sorting")
                                 )
-                                    .addElement(TitleElement("Group By Columns"))
-                                    .addElement(
+                                .addElement(TitleElement("Group By Columns"))
+                                .addElement(
                                     SchemaColumnsDropdown("")
-                                        .withMultipleSelection()
-                                        .bindSchema("component.ports.inputs[0].schema")
-                                        .bindProperty("groupByColumnNames")
+                                    .withMultipleSelection()
+                                    .bindSchema("component.ports.inputs[0].schema")
+                                    .bindProperty("groupByColumnNames")
                                 )
-                                    .addElement(
+                                .addElement(
                                     TitleElement(
                                         "Order rows within each group (Optional)"
                                     )
                                 )
-                                    .addElement(order_by_table.bindProperty("orderByColumns"))
+                                .addElement(order_by_table.bindProperty("orderByColumns"))
                             )
                         )
                     )
                 )
 
+                .addElement(
+                    StepContainer(gap="1rem")
                     .addElement(
-                        StepContainer(gap="1rem")
-                            .addElement(
-                            Step()
-                                .addElement(
-                                StackLayout(height="100%", gap="1rem")
-                                    .addElement(selectBox).addElement(
+                        Step()
+                        .addElement(
+                            StackLayout(height="100%", gap="1rem")
+                            .addElement(selectBox).addElement(
                                 Condition().ifEqual(PropExpr("component.properties.output_type"), StringExpr("custom")).then(
-                                StackLayout(height="100%", gap="1rem")
+                                    StackLayout(height="100%", gap="1rem")
                                     .addElement(TitleElement("Select the below options to apply custom grouping"))
                                     .addElement(
-                                    StackLayout(height="100%", gap="1rem")
+                                        StackLayout(height="100%", gap="1rem")
                                         .addElement(
-                                        SelectBox("Select the Filter type for column group count")
+                                            SelectBox("Select the Filter type for column group count")
                                             .bindProperty("column_group_condition")
                                             .withStyle({"width": "100%"})
                                             .withDefault("")
@@ -162,60 +161,88 @@ class FindDuplicates(MacroSpec):
                                             .addOption("Group count greater than", "greater_than")
                                             .addOption("Group count not equal to", "not_equal_to")
                                             .addOption("Group count between", "between")
-                                    )
+                                        )
                                         .addElement(
-                                        Condition().ifEqual(PropExpr("component.properties.column_group_condition"),
-                                                            StringExpr("between")).then(
-                                            TextBox("Lower limit (inclusive)").bindProperty(
-                                                "lower_limit").bindPlaceholder("")
-                                        ).otherwise(
-                                            TextBox("Grouped count").bindProperty("grouped_count").bindPlaceholder(""))
-                                    )
+                                            Condition().ifEqual(PropExpr("component.properties.column_group_condition"),
+                                                                StringExpr("between")).then(
+                                                TextBox("Lower limit (inclusive)").bindProperty(
+                                                    "lower_limit").bindPlaceholder("")
+                                            ).otherwise(
+                                                TextBox("Grouped count").bindProperty("grouped_count").bindPlaceholder(""))
+                                        )
                                         .addElement(between_condition.then(
-                                        TextBox("Upper limit (inclusive)").bindProperty("upper_limit").bindPlaceholder(
-                                            ""))
+                                            TextBox("Upper limit (inclusive)").bindProperty("upper_limit").bindPlaceholder(
+                                                ""))
+                                        )
                                     )
                                 )
                             )
                         )
                     )
                 )
-            )
             ))
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
         diagnostics = super(FindDuplicates, self).validate(context, component)
 
-        if len(component.properties.groupByColumnNames) == 0:
-            diagnostics.append(
-                Diagnostic("component.properties.groupByColumnNames", f"Select atleast one column to apply masking on",
-                           SeverityLevelEnum.Error)
-            )
-        if len(component.properties.groupByColumnNames) > 0:
-            missingKeyColumns = [col for col in component.properties.groupByColumnNames if
-                                 col not in component.properties.schema]
-            if missingKeyColumns:
+        schema_columns = []
+        schema_js = json.loads(component.properties.schema)
+        for js in schema_js:
+            schema_columns.append(js["name"].lower())
+
+        if component.properties.generationMethod != "allCols":
+            if len(component.properties.groupByColumnNames) == 0:
                 diagnostics.append(
-                    Diagnostic("component.properties.groupByColumnNames",
-                               f"Selected columns {missingKeyColumns} are not present in input schema.",
+                    Diagnostic("component.properties.groupByColumnNames", f"Select atleast one column from the dropdown",
                                SeverityLevelEnum.Error)
                 )
-        if component.properties.output_type == "Custom_output":
+            if len(component.properties.groupByColumnNames) > 0:
+                missingKeyColumns = [col for col in component.properties.groupByColumnNames if
+                                     col not in component.properties.schema]
+                if missingKeyColumns:
+                    diagnostics.append(
+                        Diagnostic("component.properties.groupByColumnNames",
+                                   f"Selected columns {missingKeyColumns} are not present in input schema.",
+                                   SeverityLevelEnum.Error)
+                    )
+        if component.properties.output_type == "custom":
             if component.properties.column_group_condition == "":
                 diagnostics.append(
                     Diagnostic("component.properties.column_group_condition",
-                               f"Select one group condition from the given dropdown.", SeverityLevelEnum.Error)
+                               f"Select one option from the given dropdown for custom filter", SeverityLevelEnum.Error)
                 )
-            if component.properties.column_group_condition == "between" and component.properties.lower_limit == "":
+            if component.properties.column_group_condition == "between":
+                if (component.properties.lower_limit).isdigit() == False:
+                    diagnostics.append(
+                        Diagnostic("component.properties.lower_limit",
+                                   f"Specify the lower limit value for grouped column count.", SeverityLevelEnum.Error)
+                    )
+                if (component.properties.upper_limit).isdigit() == False:
+                    diagnostics.append(
+                        Diagnostic("component.properties.upper_limit",
+                                   f"Specify the upper limit value for grouped column count.", SeverityLevelEnum.Error)
+                    )
+                if (component.properties.upper_limit).isdigit() and (component.properties.lower_limit).isdigit() and int(component.properties.upper_limit) < int(component.properties.lower_limit):
+                    diagnostics.append(
+                        Diagnostic("component.properties.column_group_condition",
+                                   f"upper limit value should be greater than lower limit value for grouped column count.", SeverityLevelEnum.Error)
+                    )
+            elif (component.properties.grouped_count).isdigit() == False:
                 diagnostics.append(
-                    Diagnostic("component.properties.lower_limit",
-                               f"Specify the lower limit value for grouped column count.", SeverityLevelEnum.Error)
+                    Diagnostic("component.properties.grouped_count",
+                               f"Group count should be a non-negative integer value", SeverityLevelEnum.Error)
                 )
-            if component.properties.column_group_condition == "between" and component.properties.upper_limit == "":
+
+        for idx, rule in enumerate(component.properties.orderByColumns):
+            expr_text = (rule.expression.expression or "").strip()
+            if rule.sortType and expr_text == "":
                 diagnostics.append(
-                    Diagnostic("component.properties.upper_limit",
-                               f"Specify the upper limit value for grouped column count.", SeverityLevelEnum.Error)
+                    Diagnostic(
+                        f"component.properties.orderByColumns[{idx}].expression.expression",
+                        "Order column expression is required when a sort direction is selected.",
+                        SeverityLevelEnum.Error,
+                    )
                 )
 
         return diagnostics
@@ -257,6 +284,18 @@ class FindDuplicates(MacroSpec):
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
+        schema_columns = []
+        schema_js = json.loads(props.schema)
+        for js in schema_js:
+            schema_columns.append(js["name"].lower())
+
+        order_rules: List[dict] = [
+            {"expr": expr, "sort": r.sortType}
+            for r in props.orderByColumns
+            for expr in [(r.expression.expression or "").strip()]  # temp var
+            if expr  # keep non-empty
+        ]
+
         def safe_str(val):
             if val is None or val == "":
                 return "''"
@@ -271,7 +310,10 @@ class FindDuplicates(MacroSpec):
             safe_str(props.output_type),
             safe_str(props.grouped_count),
             safe_str(props.lower_limit),
-            safe_str(props.upper_limit)
+            safe_str(props.upper_limit),
+            safe_str(props.generationMethod),
+            safe_str(schema_columns),
+            safe_str(order_rules)
         ]
 
         params = ",".join(arguments)
@@ -288,7 +330,9 @@ class FindDuplicates(MacroSpec):
             grouped_count=parametersMap.get('grouped_count'),
             lower_limit=parametersMap.get('lower_limit'),
             upper_limit=parametersMap.get('upper_limit'),
-            output_type=parametersMap.get('output_type')
+            output_type=parametersMap.get('output_type'),
+            generationMethod=parametersMap.get('generationMethod'),
+            orderByColumns=json.loads(parametersMap.get('orderByColumns').replace("'", '"'))
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -304,7 +348,9 @@ class FindDuplicates(MacroSpec):
                 MacroParameter("grouped_count", str(properties.grouped_count)),
                 MacroParameter("lower_limit", str(properties.lower_limit)),
                 MacroParameter("upper_limit", str(properties.upper_limit)),
-                MacroParameter("output_type", str(properties.output_type))
+                MacroParameter("output_type", str(properties.output_type)),
+                MacroParameter("generationMethod", str(properties.generationMethod)),
+                MacroParameter("orderByColumns", json.dumps(properties.generationMethod))
             ],
         )
 
