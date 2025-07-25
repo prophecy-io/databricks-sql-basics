@@ -12,7 +12,7 @@ import copy
 class DataEncoderDecoder(MacroSpec):
     name: str = "DataEncoderDecoder"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Prepare"
+    category: str = "Transform"
     minNumOfInputPorts: int = 1
 
 
@@ -23,7 +23,7 @@ class DataEncoderDecoder(MacroSpec):
         schema: str = ''
         column_names: List[str] = field(default_factory=list)
         prefix_suffix_option: str = "Prefix"
-        change_output_field: bool = False
+        new_column_add_method: str = "inplace_substitute"
         prefix_suffix_added: str = None
         enc_dec_method: str = ""
         enc_dec_charSet: str = "UTF-8"
@@ -40,13 +40,13 @@ class DataEncoderDecoder(MacroSpec):
             PropExpr("component.properties.enc_dec_method"), StringExpr("aes_encrypt")
         )
 
-        aes_decrypt_condition = Condition().ifEqual(
-            PropExpr("component.properties.enc_dec_method"), StringExpr("aes_decrypt")
-        )
+        # aes_decrypt_condition = Condition().ifEqual(
+        #     PropExpr("component.properties.enc_dec_method"), StringExpr("aes_decrypt")
+        # )
 
-        try_aes_decrypt_condition = Condition().ifEqual(
-            PropExpr("component.properties.enc_dec_method"), StringExpr("try_aes_decrypt")
-        )
+        # try_aes_decrypt_condition = Condition().ifEqual(
+        #     PropExpr("component.properties.enc_dec_method"), StringExpr("try_aes_decrypt")
+        # )
 
         encode_condition = Condition().ifEqual(
             PropExpr("component.properties.enc_dec_method"), StringExpr("encode")
@@ -57,12 +57,24 @@ class DataEncoderDecoder(MacroSpec):
         )
 
         new_column_condition = Condition().ifEqual(
-            PropExpr("component.properties.change_output_field"), BooleanExpr(False)
+            PropExpr("component.properties.new_column_add_method"), BooleanExpr(False)
         )
+
+        selectBoxNewColumns = (RadioGroup("")
+                               .addOption("Substitute the new columns in place", "inplace_substitute",
+                                          description=("This option will substitute the original columns to have encoded/decoded value with same name"))
+                               .addOption("Add new columns with a prefix/suffix attached", "prefix_suffix_substitute",
+                                          description="This option will keep the original columns intact and add new columns with added prefix/suffix to respective columns"
+                                          )
+                               .setOptionType("button")
+                               .setVariant("medium")
+                               .setButtonStyle("solid")
+                               .bindProperty("new_column_add_method")
+                               )
 
         encode_decode_params_ui = (
             StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(SelectBox("charSet").bindProperty("enc_dec_charSet").withDefault("UTF-8")
+            .addElement(SelectBox("Charset to use to encode/decode").bindProperty("enc_dec_charSet").withDefault("UTF-8")
                         .addOption("'US-ASCII': Seven-bit ASCII, ISO646-US", "US-ASCII")
                         .addOption("'ISO-8859-1': ISO Latin Alphabet No. 1, ISO-LATIN-1", "ISO-8859-1")
                         .addOption("'UTF-8': Eight-bit UCS Transformation Format", "UTF-8")
@@ -72,101 +84,101 @@ class DataEncoderDecoder(MacroSpec):
                         )
         )
 
-        try_aes_decrypt_params_ui = (
-            StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(StepContainer()
-            .addElement(
-                Step()
-                .addElement(
-                    StackLayout(height="100%")
-                    .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
-                    .addElement(
-                        ColumnsLayout(gap="1rem", height="100%")
-                        .addColumn(
-                            TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_key").bindPlaceholder(""), "50%"
-                        )
-                        .addColumn(
-                            TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_key").bindPlaceholder(""), "50%"
-                        )
-                    )
-                )
-            )
-            )
-            .addElement(SelectBox("mode").bindProperty("aes_enc_dec_mode").withDefault("GCM")
-                        .addOption("Galois/Counter Mode (GCM)", "GCM")
-                        .addOption("Electronic CodeBook (ECB)", "ECB")
-                        )
-            .addElement(
-                Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
-                    StepContainer()
-                    .addElement(
-                        Step()
-                        .addElement(
-                            StackLayout(height="100%")
-                            .addElement(TitleElement("Provide secret scope/key for encryption authenticated additional data(AAD)"))
-                            .addElement(
-                                ColumnsLayout(gap="1rem", height="100%")
-                                .addColumn(
-                                    TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_aad").bindPlaceholder(""), "50%"
-                                )
-                                .addColumn(
-                                    TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_aad").bindPlaceholder(""), "50%"
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        )
+        # try_aes_decrypt_params_ui = (
+        #     StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
+        #     .addElement(StepContainer()
+        #     .addElement(
+        #         Step()
+        #         .addElement(
+        #             StackLayout(height="100%")
+        #             .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
+        #             .addElement(
+        #                 ColumnsLayout(gap="1rem", height="100%")
+        #                 .addColumn(
+        #                     TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_key").bindPlaceholder(""), "50%"
+        #                 )
+        #                 .addColumn(
+        #                     TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_key").bindPlaceholder(""), "50%"
+        #                 )
+        #             )
+        #         )
+        #     )
+        #     )
+        #     .addElement(SelectBox("mode").bindProperty("aes_enc_dec_mode").withDefault("GCM")
+        #                 .addOption("Galois/Counter Mode (GCM)", "GCM")
+        #                 .addOption("Electronic CodeBook (ECB)", "ECB")
+        #                 )
+        #     .addElement(
+        #         Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
+        #             StepContainer()
+        #             .addElement(
+        #                 Step()
+        #                 .addElement(
+        #                     StackLayout(height="100%")
+        #                     .addElement(TitleElement("Provide secret scope/key for encryption authenticated additional data(AAD)"))
+        #                     .addElement(
+        #                         ColumnsLayout(gap="1rem", height="100%")
+        #                         .addColumn(
+        #                             TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_aad").bindPlaceholder(""), "50%"
+        #                         )
+        #                         .addColumn(
+        #                             TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_aad").bindPlaceholder(""), "50%"
+        #                         )
+        #                     )
+        #                 )
+        #             )
+        #         )
+        #     )
+        # )
 
-        aes_decrypt_params_ui = (
-            StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(
-                StepContainer()
-                .addElement(
-                    Step()
-                    .addElement(
-                        StackLayout(height="100%")
-                        .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
-                        .addElement(
-                            ColumnsLayout(gap="1rem", height="100%")
-                            .addColumn(
-                                TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_key").bindPlaceholder(""), "50%"
-                            )
-                            .addColumn(
-                                TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_key").bindPlaceholder(""), "50%"
-                            )
-                        )
-                    )
-                )
-            )
-            .addElement(SelectBox("mode").bindProperty("aes_enc_dec_mode").withDefault("GCM")
-                        .addOption("Galois/Counter Mode (GCM)", "GCM")
-                        .addOption("Cipher-Block Chaining (CBC)", "CBC")
-                        .addOption("Electronic CodeBook (ECB)", "ECB")
-                        )
-            .addElement(
-                Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
-                    StepContainer()
-                    .addElement(
-                        Step()
-                        .addElement(
-                            StackLayout(height="100%")
-                            .addElement(TitleElement("Provide secret scope/key for encryption authenticated additional data(AAD)"))
-                            .addElement(
-                                ColumnsLayout(gap="1rem", height="100%")
-                                .addColumn(
-                                    TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_aad").bindPlaceholder(""), "50%"
-                                )
-                                .addColumn(
-                                    TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_aad").bindPlaceholder(""), "50%"
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        )
+        # aes_decrypt_params_ui = (
+        #     StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
+        #     .addElement(
+        #         StepContainer()
+        #         .addElement(
+        #             Step()
+        #             .addElement(
+        #                 StackLayout(height="100%")
+        #                 .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
+        #                 .addElement(
+        #                     ColumnsLayout(gap="1rem", height="100%")
+        #                     .addColumn(
+        #                         TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_key").bindPlaceholder(""), "50%"
+        #                     )
+        #                     .addColumn(
+        #                         TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_key").bindPlaceholder(""), "50%"
+        #                     )
+        #                 )
+        #             )
+        #         )
+        #     )
+        #     .addElement(SelectBox("mode").bindProperty("aes_enc_dec_mode").withDefault("GCM")
+        #                 .addOption("Galois/Counter Mode (GCM)", "GCM")
+        #                 .addOption("Cipher-Block Chaining (CBC)", "CBC")
+        #                 .addOption("Electronic CodeBook (ECB)", "ECB")
+        #                 )
+        #     .addElement(
+        #         Condition().ifEqual(PropExpr("component.properties.aes_enc_dec_mode"), StringExpr("GCM")).then(
+        #             StepContainer()
+        #             .addElement(
+        #                 Step()
+        #                 .addElement(
+        #                     StackLayout(height="100%")
+        #                     .addElement(TitleElement("Provide secret scope/key for encryption authenticated additional data(AAD)"))
+        #                     .addElement(
+        #                         ColumnsLayout(gap="1rem", height="100%")
+        #                         .addColumn(
+        #                             TextBox("Secret Scope").bindProperty("aes_enc_dec_secretScope_aad").bindPlaceholder(""), "50%"
+        #                         )
+        #                         .addColumn(
+        #                             TextBox("Secret Key").bindProperty("aes_enc_dec_secretKey_aad").bindPlaceholder(""), "50%"
+        #                         )
+        #                     )
+        #                 )
+        #             )
+        #         )
+        #     )
+        # )
 
         aes_encrypt_params_ui = (
             StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
@@ -270,7 +282,7 @@ class DataEncoderDecoder(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select columns to encode"))
+                            .addElement(TitleElement("Select columns to encode/decode"))
                             .addElement(
                                 SchemaColumnsDropdown("", appearance="minimal")
                                 .withMultipleSelection()
@@ -285,7 +297,7 @@ class DataEncoderDecoder(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select the custom encryption options"))
+                            .addElement(TitleElement("Select the custom encode / decode options"))
                             .addElement(
                                 SelectBox("Choose your encoding/decoding method")
                                 .bindProperty("enc_dec_method")
@@ -298,24 +310,24 @@ class DataEncoderDecoder(MacroSpec):
                                 .addOption("encode", "encode")
                                 .addOption("decode", "decode")
                                 .addOption("aes_encrypt", "aes_encrypt")
-                                .addOption("aes_decrypt", "aes_decrypt")
-                                .addOption("try_aes_decrypt", "try_aes_decrypt")
+                                #.addOption("aes_decrypt", "aes_decrypt")
+                                #.addOption("try_aes_decrypt", "try_aes_decrypt")
                             )
                             .addElement(
                                 aes_encrypt_condition.then(
                                     aes_encrypt_params_ui
                                 )
                             )
-                            .addElement(
-                                aes_decrypt_condition.then(
-                                    aes_decrypt_params_ui
-                                )
-                            )
-                            .addElement(
-                                try_aes_decrypt_condition.then(
-                                    try_aes_decrypt_params_ui
-                                )
-                            )
+                            # .addElement(
+                            #     aes_decrypt_condition.then(
+                            #         aes_decrypt_params_ui
+                            #     )
+                            # )
+                            # .addElement(
+                            #     try_aes_decrypt_condition.then(
+                            #         try_aes_decrypt_params_ui
+                            #     )
+                            # )
                             .addElement(
                                 encode_condition.then(
                                     encode_decode_params_ui
@@ -335,13 +347,12 @@ class DataEncoderDecoder(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select the option to name new columns"))
+                            .addElement(TitleElement("Transformed column options"))
                             .addElement(
-                                Checkbox(
-                                    "Maintain the original columns and add prefix/suffix to the new column").bindProperty("change_output_field")
+                                selectBoxNewColumns
                             )
                             .addElement(
-                                Condition().ifEqual(PropExpr("component.properties.change_output_field"), BooleanExpr(True)).then(
+                                Condition().ifEqual(PropExpr("component.properties.new_column_add_method"), StringExpr("prefix_suffix_substitute")).then(
                                     StackLayout(height="100%").addElement(
                                         ColumnsLayout(gap="1rem", height="100%")
                                         .addColumn(
@@ -371,6 +382,11 @@ class DataEncoderDecoder(MacroSpec):
         aes_enc_dec_secretKey_iv = component.properties.aes_enc_dec_secretKey_iv
         aes_enc_dec_secretScope_iv = component.properties.aes_enc_dec_secretScope_iv
 
+        schema_columns = []
+        schema_js = json.loads(component.properties.schema)
+        for js in schema_js:
+            schema_columns.append(js["name"].lower())
+
         doing_aes_encryption = None
         if enc_dec_method in ("aes_decrypt", "try_aes_decrypt"):
             doing_aes_encryption = False
@@ -379,16 +395,16 @@ class DataEncoderDecoder(MacroSpec):
 
         if len(component.properties.column_names) == 0 :
             diagnostics.append(
-                Diagnostic("component.properties.column_names", f"Select atleast one column from the input port dataset", SeverityLevelEnum.Error)
+                Diagnostic("component.properties.column_names", f"Select atleast one column from the input port dataset dropdown", SeverityLevelEnum.Error)
             )
         if len(component.properties.column_names) > 0 :
             missingKeyColumns = [col for col in component.properties.column_names if
-                                 col not in component.properties.schema]
+                                 col not in schema_columns]
             if missingKeyColumns:
                 diagnostics.append(
                     Diagnostic("component.properties.column_names", f"Selected columns {missingKeyColumns} are not present in input schema.", SeverityLevelEnum.Error)
                 )
-        if component.properties.change_output_field == True:
+        if component.properties.new_column_add_method == "prefix_suffix_substitute":
             if component.properties.prefix_suffix_option is None:
                 diagnostics.append(
                     Diagnostic("component.properties.prefix_suffix_option", f"Select atleast one option Prefix/Suffix for new column names", SeverityLevelEnum.Error)
@@ -506,7 +522,7 @@ class DataEncoderDecoder(MacroSpec):
             safe_str(props.aes_enc_dec_secretScope_iv),
             safe_str(props.aes_enc_dec_secretKey_iv),
             safe_str(props.prefix_suffix_option),
-            safe_str(props.change_output_field),
+            safe_str(props.new_column_add_method),
             safe_str(props.prefix_suffix_added)
         ]
 
@@ -530,7 +546,7 @@ class DataEncoderDecoder(MacroSpec):
             aes_enc_dec_secretScope_iv=parametersMap.get('aes_enc_dec_secretScope_iv'),
             aes_enc_dec_secretKey_iv=parametersMap.get('aes_enc_dec_secretKey_iv'),
             prefix_suffix_option=parametersMap.get('prefix_suffix_option'),
-            change_output_field=parametersMap.get('change_output_field'),
+            new_column_add_method=parametersMap.get('new_column_add_method'),
             prefix_suffix_added=parametersMap.get('prefix_suffix_added')
         )
 
@@ -554,7 +570,7 @@ class DataEncoderDecoder(MacroSpec):
                 MacroParameter("aes_enc_dec_secretScope_iv", str(properties.aes_enc_dec_secretScope_iv)),
                 MacroParameter("aes_enc_dec_secretKey_iv", str(properties.aes_enc_dec_secretKey_iv)),
                 MacroParameter("prefix_suffix_option", str(properties.prefix_suffix_option)),
-                MacroParameter("change_output_field", str(properties.change_output_field)),
+                MacroParameter("new_column_add_method", str(properties.new_column_add_method)),
                 MacroParameter("prefix_suffix_added", str(properties.prefix_suffix_added))
             ],
         )
@@ -570,4 +586,3 @@ class DataEncoderDecoder(MacroSpec):
             relation_name=relation_name
         )
         return component.bindProperties(newProperties)
-

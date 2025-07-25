@@ -1,4 +1,4 @@
-{% macro DataEncoder(
+{% macro DataEncoderDecoder(
     relation_name,
     column_names,
     remaining_columns,
@@ -36,7 +36,7 @@
             {%- endif -%}
 
             {%- set arg_string = args | join(', ') -%}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ prefix_suffix_val ~ column) -%}
@@ -45,6 +45,8 @@
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
+    {#  ──────────────────────────────────── AES DECRYPT DISABLED BLOCK  ──────────────────────────────────────────────────── #}
+    {#
     {%- if enc_dec_method == "aes_decrypt" -%}
         {% for column in column_names %}
             {%- set args = [
@@ -57,7 +59,7 @@
                 {%- do args.append("secret('" ~ aes_enc_dec_secretScope_aad ~ "','" ~ aes_enc_dec_secretKey_aad ~ "')") -%}
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
@@ -78,7 +80,7 @@
                 {%- do args.append("secret('" ~ aes_enc_dec_secretScope_aad ~ "','" ~ aes_enc_dec_secretKey_aad ~ "')") -%}
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
@@ -87,9 +89,10 @@
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
+    #}
     {%- if enc_dec_method == "base64" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("base64(" ~ column ~ ") AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("base64(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
@@ -100,7 +103,7 @@
     {%- endif -%}
     {%- if enc_dec_method == "unbase64" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ column ~ ") AS STRING) AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ column ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
@@ -111,7 +114,7 @@
     {%- endif -%}
     {%- if enc_dec_method == "hex" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("hex(" ~ column ~ ") AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("hex(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
@@ -122,7 +125,7 @@
     {%- endif -%}
     {%- if enc_dec_method == "unhex" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ column ~ "), 'UTF-8') AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ column ~ "), 'UTF-8') AS " ~ prefix_suffix_val ~ column) -%}
@@ -133,7 +136,7 @@
     {%- endif -%}
     {%- if enc_dec_method == "encode" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("hex(encode(" ~ column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("hex(encode(" ~ column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ prefix_suffix_val ~ column) -%}
@@ -144,7 +147,7 @@
     {%- endif -%}
     {%- if enc_dec_method == "decode" -%}
         {% for column in column_names %}
-            {%- if change_col_name == "False" -%}
+            {%- if change_col_name == "inplace_substitute" -%}
                 {%- do withColumn_clause.append("decode(unhex(" ~ column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ column) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
                 {%- do withColumn_clause.append("decode(unhex(" ~ column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ prefix_suffix_val ~ column) -%}
@@ -160,7 +163,7 @@
                 SELECT *
                 FROM {{ relation_name }}
             )
-        {%- elif change_col_name == "True" -%}
+        {%- elif change_col_name == "prefix_suffix_substitute" -%}
             WITH final_cte AS (
                 SELECT *, {{ select_clause_sql }}
                 FROM {{ relation_name }}

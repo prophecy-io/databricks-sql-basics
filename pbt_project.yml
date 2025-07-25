@@ -158,14 +158,14 @@ sqlMacros:
       - .prophecy/ide/macros/generate_schema_name.json
       - macros/macros.yml
     createdAt: '2025-03-28 05:05:21'
-  .prophecy/metadata/sqlmacros/DataEncoder:
-    name: DataEncoder
+  .prophecy/metadata/sqlmacros/DataEncoderDecoder:
+    name: DataEncoderDecoder
     macroType: query
     description: null
     author: g.ayush@prophecy.io
     files:
       - macros/DataEncoderDecoder.sql
-      - .prophecy/ide/macros/DataEncoder.json
+      - .prophecy/ide/macros/DataEncoderDecoder.json
       - macros/macros.yml
       - gems/DataEncoderDecoder.py
     createdAt: '2025-07-04 04:59:45'
