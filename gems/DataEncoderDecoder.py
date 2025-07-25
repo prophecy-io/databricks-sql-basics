@@ -297,7 +297,7 @@ class DataEncoderDecoder(MacroSpec):
                         Step()
                         .addElement(
                             StackLayout(height="100%")
-                            .addElement(TitleElement("Select the custom encode / decode options"))
+                            .addElement(TitleElement("select encode / decode option"))
                             .addElement(
                                 SelectBox("Choose your encoding/decoding method")
                                 .bindProperty("enc_dec_method")
