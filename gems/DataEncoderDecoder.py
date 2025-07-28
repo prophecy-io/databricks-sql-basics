@@ -7,7 +7,7 @@ from prophecy.cb.ui.uispec import *
 
 class DataEncoderDecoder(MacroSpec):
     name: str = "DataEncoderDecoder"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "gem_building"
     category: str = "Transform"
     minNumOfInputPorts: int = 1
 
@@ -308,7 +308,7 @@ class DataEncoderDecoder(MacroSpec):
                         Step()
                             .addElement(
                             StackLayout(height="100%")
-                                .addElement(TitleElement("select encode / decode option"))
+                                .addElement(TitleElement("Select encode / decode option"))
                                 .addElement(
                                 SelectBox("Choose your encoding/decoding method")
                                     .bindProperty("enc_dec_method")
