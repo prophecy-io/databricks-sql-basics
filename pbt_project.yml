@@ -1,6 +1,6 @@
 name: DatabricksSqlBasics
 description: ''
-version: 0.0.12.dev1
+version: 0.0.12.dev2
 author: abhisheks+e2etests@prophecy.io
 language: sql
 buildSystem: ''
@@ -200,6 +200,17 @@ sqlMacros:
       - .prophecy/ide/macros/DataMasking.json
       - macros/macros.yml
       - gems/DataMasking.py
+    createdAt: '2025-06-09 04:59:45'
+  .prophecy/metadata/sqlmacros/DataEncoderDecoder:
+    name: DataEncoderDecoder
+    macroType: expression
+    description: null
+    author: g.ayush@prophecy.io
+    files:
+      - macros/DataEncoderDecoder.sql
+      - .prophecy/ide/macros/DataEncoderDecoder.json
+      - macros/macros.yml
+      - gems/DataEncoderDecoder.py
     createdAt: '2025-06-09 04:59:45'
 sqlSeeds: {}
 sqlSources: {}
