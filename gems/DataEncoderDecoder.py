@@ -7,7 +7,7 @@ from prophecy.cb.ui.uispec import *
 
 class DataEncoderDecoder(MacroSpec):
     name: str = "DataEncoderDecoder"
-    projectName: str = "gem_building"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
     minNumOfInputPorts: int = 1
 
