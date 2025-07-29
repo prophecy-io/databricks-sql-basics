@@ -31,8 +31,8 @@ class FindDuplicates(MacroSpec):
         generationMethod: str = "allCols"
         groupByColumnNames: List[str] = field(default_factory=list)
         orderByColumns: List[OrderByRule] = field(default_factory=list)
-        column_group_condition: str = ""
-        grouped_count: str = ""
+        column_group_rownum_condition: str = ""
+        grouped_count_rownum: str = ""
         lower_limit: str = ""
         upper_limit: str = ""
         output_type: str = "unique"
@@ -84,7 +84,7 @@ class FindDuplicates(MacroSpec):
         )
 
         between_condition = Condition().ifEqual(
-            PropExpr("component.properties.column_group_condition"), StringExpr("between")
+            PropExpr("component.properties.column_group_rownum_condition"), StringExpr("between")
         )
 
         selectBox = (RadioGroup("Output records selection strategy ")
@@ -94,8 +94,11 @@ class FindDuplicates(MacroSpec):
                      .addOption("Duplicate", "duplicate",
                                 description="Returns the duplicate records from the dataset based on the selected columns combination"
                                 )
-                     .addOption("Custom", "custom",
+                     .addOption("Custom group count", "custom_group_count",
                                 description="Returns the records with grouped column count as per below selected options"
+                                )
+                     .addOption("Custom row number", "custom_row_number",
+                                description="Filter records by custom row number condition"
                                 )
                      .setOptionType("button")
                      .setVariant("medium")
@@ -146,14 +149,14 @@ class FindDuplicates(MacroSpec):
                         .addElement(
                             StackLayout(height="100%", gap="1rem")
                             .addElement(selectBox).addElement(
-                                Condition().ifEqual(PropExpr("component.properties.output_type"), StringExpr("custom")).then(
+                                Condition().ifEqual(PropExpr("component.properties.output_type"), StringExpr("custom_group_count")).then(
                                     StackLayout(height="100%", gap="1rem")
-                                    .addElement(TitleElement("Select the below options to apply custom grouping"))
+                                    .addElement(TitleElement("Select options for grouped count records"))
                                     .addElement(
                                         StackLayout(height="100%", gap="1rem")
                                         .addElement(
                                             SelectBox("Select the Filter type for column group count")
-                                            .bindProperty("column_group_condition")
+                                            .bindProperty("column_group_rownum_condition")
                                             .withStyle({"width": "100%"})
                                             .withDefault("")
                                             .addOption("Group count equal to", "equal_to")
@@ -163,12 +166,43 @@ class FindDuplicates(MacroSpec):
                                             .addOption("Group count between", "between")
                                         )
                                         .addElement(
-                                            Condition().ifEqual(PropExpr("component.properties.column_group_condition"),
+                                            Condition().ifEqual(PropExpr("component.properties.column_group_rownum_condition"),
                                                                 StringExpr("between")).then(
                                                 TextBox("Lower limit (inclusive)").bindProperty(
                                                     "lower_limit").bindPlaceholder("")
                                             ).otherwise(
-                                                TextBox("Grouped count").bindProperty("grouped_count").bindPlaceholder(""))
+                                                TextBox("Grouped count").bindProperty("grouped_count_rownum").bindPlaceholder(""))
+                                        )
+                                        .addElement(between_condition.then(
+                                            TextBox("Upper limit (inclusive)").bindProperty("upper_limit").bindPlaceholder(
+                                                ""))
+                                        )
+                                    )
+                                )
+                            ).addElement(
+                                Condition().ifEqual(PropExpr("component.properties.output_type"), StringExpr("custom_row_number")).then(
+                                    StackLayout(height="100%", gap="1rem")
+                                    .addElement(TitleElement("Select options for custom row number records"))
+                                    .addElement(
+                                        StackLayout(height="100%", gap="1rem")
+                                        .addElement(
+                                            SelectBox("Select the Filter type for custom row number records")
+                                            .bindProperty("column_group_rownum_condition")
+                                            .withStyle({"width": "100%"})
+                                            .withDefault("")
+                                            .addOption("Row number equal to", "equal_to")
+                                            .addOption("Row number less than", "less_than")
+                                            .addOption("Row number greater than", "greater_than")
+                                            .addOption("Row number not equal to", "not_equal_to")
+                                            .addOption("Row number between", "between")
+                                        )
+                                        .addElement(
+                                            Condition().ifEqual(PropExpr("component.properties.column_group_rownum_condition"),
+                                                                StringExpr("between")).then(
+                                                TextBox("Lower limit (inclusive)").bindProperty(
+                                                    "lower_limit").bindPlaceholder("")
+                                            ).otherwise(
+                                                TextBox("Row number").bindProperty("grouped_count_rownum").bindPlaceholder(""))
                                         )
                                         .addElement(between_condition.then(
                                             TextBox("Upper limit (inclusive)").bindProperty("upper_limit").bindPlaceholder(
@@ -206,13 +240,13 @@ class FindDuplicates(MacroSpec):
                                    f"Selected columns {missingKeyColumns} are not present in input schema.",
                                    SeverityLevelEnum.Error)
                     )
-        if component.properties.output_type == "custom":
-            if component.properties.column_group_condition == "":
+        if component.properties.output_type in ("custom_group_count", "custom_row_number"):
+            if component.properties.column_group_rownum_condition == "":
                 diagnostics.append(
-                    Diagnostic("component.properties.column_group_condition",
+                    Diagnostic("component.properties.column_group_rownum_condition",
                                f"Select one option from the given dropdown for custom filter", SeverityLevelEnum.Error)
                 )
-            if component.properties.column_group_condition == "between":
+            if component.properties.column_group_rownum_condition == "between":
                 if (component.properties.lower_limit).isdigit() == False:
                     diagnostics.append(
                         Diagnostic("component.properties.lower_limit",
@@ -225,12 +259,12 @@ class FindDuplicates(MacroSpec):
                     )
                 if (component.properties.upper_limit).isdigit() and (component.properties.lower_limit).isdigit() and int(component.properties.upper_limit) < int(component.properties.lower_limit):
                     diagnostics.append(
-                        Diagnostic("component.properties.column_group_condition",
+                        Diagnostic("component.properties.column_group_rownum_condition",
                                    f"upper limit value should be greater than lower limit value for grouped column count.", SeverityLevelEnum.Error)
                     )
-            elif (component.properties.grouped_count).isdigit() == False:
+            elif (component.properties.grouped_count_rownum).isdigit() == False:
                 diagnostics.append(
-                    Diagnostic("component.properties.grouped_count",
+                    Diagnostic("component.properties.grouped_count_rownum",
                                f"Group count should be a non-negative integer value", SeverityLevelEnum.Error)
                 )
 
@@ -306,9 +340,9 @@ class FindDuplicates(MacroSpec):
         arguments = [
             "'" + table_name + "'",
             safe_str(props.groupByColumnNames),
-            safe_str(props.column_group_condition),
+            safe_str(props.column_group_rownum_condition),
             safe_str(props.output_type),
-            safe_str(props.grouped_count),
+            safe_str(props.grouped_count_rownum),
             safe_str(props.lower_limit),
             safe_str(props.upper_limit),
             safe_str(props.generationMethod),
@@ -326,8 +360,8 @@ class FindDuplicates(MacroSpec):
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
             groupByColumnNames=json.loads(parametersMap.get('groupByColumnNames').replace("'", '"')),
-            column_group_condition=parametersMap.get('column_group_condition'),
-            grouped_count=parametersMap.get('grouped_count'),
+            column_group_rownum_condition=parametersMap.get('column_group_rownum_condition'),
+            grouped_count_rownum=parametersMap.get('grouped_count_rownum'),
             lower_limit=parametersMap.get('lower_limit'),
             upper_limit=parametersMap.get('upper_limit'),
             output_type=parametersMap.get('output_type'),
@@ -344,8 +378,8 @@ class FindDuplicates(MacroSpec):
                 MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("groupByColumnNames", json.dumps(properties.groupByColumnNames)),
-                MacroParameter("column_group_condition", str(properties.column_group_condition)),
-                MacroParameter("grouped_count", str(properties.grouped_count)),
+                MacroParameter("column_group_rownum_condition", str(properties.column_group_rownum_condition)),
+                MacroParameter("grouped_count_rownum", str(properties.grouped_count_rownum)),
                 MacroParameter("lower_limit", str(properties.lower_limit)),
                 MacroParameter("upper_limit", str(properties.upper_limit)),
                 MacroParameter("output_type", str(properties.output_type)),

@@ -1,9 +1,9 @@
 {%- macro FindDuplicates(
     relation_name,
     column_names,
-    column_group_condition,
+    column_group_rownum_condition,
     output_type,
-    grouped_count,
+    grouped_count_rownum,
     lower_limit,
     upper_limit,
     generationMethod,
@@ -38,7 +38,7 @@
     {%- set window_order_by_str = order_parts | join(', ')-%}
 
     {%- if window_order_by_str == '' -%}
-        {%- set window_order_by_str_param = '' -%}
+        {%- set window_order_by_str_param = 'ORDER BY 1' -%}
     {%- else -%}
         {%- set window_order_by_str_param = 'ORDER BY ' ~ window_order_by_str -%}
     {%- endif -%}
@@ -53,7 +53,7 @@
     {% endset %}
 
     {%- set select_window_cte -%}
-        {%- if output_type == "custom" -%}
+        {%- if output_type == "custom_group_count" -%}
             WITH select_cte1 AS(
                 SELECT *, COUNT(*) OVER({{ window_partition_by_str }}) AS group_count FROM {{ relation_name }}
             )
@@ -65,22 +65,34 @@
     {%- endset -%}
 
     {%- set select_window_filter -%}
-        {%- if output_type == "custom" -%}
-            {%- if column_group_condition == "between" -%}
+        {%- if output_type == "custom_group_count" -%}
+            {%- if column_group_rownum_condition == "between" -%}
                 SELECT * FROM select_cte1 WHERE group_count BETWEEN {{ lower_limit }} AND {{ upper_limit }}
-            {%-elif column_group_condition == "equal_to" -%}
-                SELECT * FROM select_cte1 WHERE group_count = {{ grouped_count }}
-            {%-elif column_group_condition == "not_equal_to" -%}
-                SELECT * FROM select_cte1 WHERE group_count <> {{ grouped_count }}
-            {%-elif column_group_condition == "less_than" -%}
-                SELECT * FROM select_cte1 WHERE group_count < {{ grouped_count }}
-            {%-elif column_group_condition == "greater_than" -%}
-                SELECT * FROM select_cte1 WHERE group_count > {{ grouped_count }}
+            {%-elif column_group_rownum_condition == "equal_to" -%}
+                SELECT * FROM select_cte1 WHERE group_count = {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "not_equal_to" -%}
+                SELECT * FROM select_cte1 WHERE group_count <> {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "less_than" -%}
+                SELECT * FROM select_cte1 WHERE group_count < {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "greater_than" -%}
+                SELECT * FROM select_cte1 WHERE group_count > {{ grouped_count_rownum }}
             {%- endif -%}
         {%- elif output_type == "unique" -%}
             SELECT * FROM select_cte1 WHERE row_num = 1
         {%- elif output_type == "duplicate" -%}
             SELECT * FROM select_cte1 WHERE row_num > 1
+        {%- elif output_type == "custom_row_number" -%}
+            {%- if column_group_rownum_condition == "between" -%}
+                SELECT * FROM select_cte1 WHERE row_num BETWEEN {{ lower_limit }} AND {{ upper_limit }}
+            {%-elif column_group_rownum_condition == "equal_to" -%}
+                SELECT * FROM select_cte1 WHERE row_num = {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "not_equal_to" -%}
+                SELECT * FROM select_cte1 WHERE row_num <> {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "less_than" -%}
+                SELECT * FROM select_cte1 WHERE row_num < {{ grouped_count_rownum }}
+            {%-elif column_group_rownum_condition == "greater_than" -%}
+                SELECT * FROM select_cte1 WHERE row_num > {{ grouped_count_rownum }}
+            {%- endif -%}
         {%- endif -%}
     {%- endset -%}
 
@@ -92,4 +104,3 @@
     {{ return(final_select_query) }}
 
 {%- endmacro -%}
-
