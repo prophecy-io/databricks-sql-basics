@@ -49,11 +49,25 @@ class DataMasking(MacroSpec):
         )
 
         mask_params_ui = (
-            StackLayout(gap="1rem", height="100%",direction="vertical", width="100%")
-            .addElement(TextBox("Uppercase character replacement (optional)").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character"))
-            .addElement(TextBox("Lowercase character replacement (optional)").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character"))
-            .addElement(TextBox("Digit replacement (optional)").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character"))
-            .addElement(TextBox("Special character replacement (optional)").bindProperty("other_char_substitute").bindPlaceholder("Default value is NULL. Specify NULL to retain original character."))
+            StackLayout(height="100%").addElement(
+                ColumnsLayout(gap="1rem", height="100%")
+                .addColumn(
+                    StackLayout(height="100%")
+                    .addElement(
+                        TextBox("Uppercase character replacement (optional)").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character")
+                    ).addElement(
+                        TextBox("Lowercase character replacement (optional)").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character")
+                    )
+                )
+                .addColumn(
+                    StackLayout(height="100%")
+                    .addElement(
+                        TextBox("Digit replacement (optional)").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character")
+                    ).addElement(
+                        TextBox("Special character replacement (optional)").bindProperty("other_char_substitute").bindPlaceholder("Default value is NULL. Specify NULL to retain original character.")
+                    )
+                )
+            )
         )
 
         selectBox_nonHash = (RadioGroup("")
