@@ -21,13 +21,13 @@ class CountRecords(MacroSpec):
 
     def dialog(self) -> Dialog:
         count_radio_box = (RadioGroup("Select count option")
-                           .addOption("Count number of records in input dataframe", "count_all_records",
+                           .addOption("Count total number of records", "count_all_records",
                                       description=("This option will return the total row count of input table"))
-                           .addOption("Count non-null records from input dataframe for selected column(s)",
+                           .addOption("Count non-null records in selected columns",
                                       "count_non_null_records",
                                       description="This option will return the total row count excluding NULLs for the selected column(s)"
                                       )
-                           .addOption("Count distinct records from input dataframe for selected column(s)",
+                           .addOption("Count distinct non-null records in selected columns",
                                       "count_distinct_records",
                                       description="This option will return the distinct row count excluding NULLs for the selected column(s)"
                                       )
