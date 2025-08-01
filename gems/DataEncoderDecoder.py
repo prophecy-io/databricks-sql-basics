@@ -90,7 +90,7 @@ class DataEncoderDecoder(MacroSpec):
         #         Step()
         #         .addElement(
         #             StackLayout(height="100%")
-        #             .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
+        #             .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long *"))
         #             .addElement(
         #                 ColumnsLayout(gap="1rem", height="100%")
         #                 .addColumn(
@@ -138,7 +138,7 @@ class DataEncoderDecoder(MacroSpec):
         #             Step()
         #             .addElement(
         #                 StackLayout(height="100%")
-        #                 .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
+        #                 .addElement(TitleElement("Provide secret scope/key for encryption key, It must be 16, 24, or 32 bytes long *"))
         #                 .addElement(
         #                     ColumnsLayout(gap="1rem", height="100%")
         #                     .addColumn(
@@ -188,7 +188,7 @@ class DataEncoderDecoder(MacroSpec):
                     .addElement(
                         StackLayout(height="100%")
                         .addElement(TitleElement(
-                            "Provide Databricks secret scope/key for encryption key, It must be 16, 24, or 32 bytes long [Required]"))
+                            "Provide Databricks secret scope/key for encryption key, It must be 16, 24, or 32 bytes long *"))
                         .addElement(
                             ColumnsLayout(gap="1rem", height="100%")
                             .addColumn(
@@ -216,7 +216,7 @@ class DataEncoderDecoder(MacroSpec):
                         .addElement(
                             StackLayout(height="100%")
                             .addElement(TitleElement(
-                                "Provide Databricks secret scope/key for encryption authenticated additional data(AAD) [Optional]"))
+                                "Provide Databricks secret scope/key for encryption authenticated additional data(AAD)"))
                             .addElement(
                                 ColumnsLayout(gap="1rem", height="100%")
                                 .addColumn(
@@ -240,7 +240,7 @@ class DataEncoderDecoder(MacroSpec):
                         .addElement(
                             StackLayout(height="100%")
                             .addElement(TitleElement(
-                                "Provide Databricks secret scope/key for initialization vector(iv), STRING expression when specified, must be 12-bytes long [Optional]"))
+                                "Provide Databricks secret scope/key for initialization vector(iv), STRING expression when specified, must be 12-bytes long"))
                             .addElement(
                                 ColumnsLayout(gap="1rem", height="100%")
                                 .addColumn(
@@ -264,7 +264,7 @@ class DataEncoderDecoder(MacroSpec):
                         .addElement(
                             StackLayout(height="100%")
                             .addElement(TitleElement(
-                                "Provide Databricks secret scope/key for initialization vector(iv), STRING expression when specified, must be 16-bytes [Optional]"))
+                                "Provide Databricks secret scope/key for initialization vector(iv), STRING expression when specified, must be 16-bytes"))
                             .addElement(
                                 ColumnsLayout(gap="1rem", height="100%")
                                 .addColumn(

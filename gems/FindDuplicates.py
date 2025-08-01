@@ -133,7 +133,7 @@ class FindDuplicates(MacroSpec):
                                 )
                                 .addElement(
                                     TitleElement(
-                                        "Order rows within each group (Optional)"
+                                        "Order rows within each group"
                                     )
                                 )
                                 .addElement(order_by_table.bindProperty("orderByColumns"))
