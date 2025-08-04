@@ -22,7 +22,7 @@
 
     {% set bt = "`" %}
 
-    {# ───────────── 1. cleansed_data CTE (row-level) ───────────── #}
+    {# ───────────── 1) Row-level filter CTE ───────────── #}
     {% set cleansed_cte %}
         WITH cleansed_data AS (
             SELECT *
@@ -30,43 +30,45 @@
             {% if removeRowNullAllCols %}
                 WHERE
                 {%- set conds = [] -%}
-                {%- for c in schema %}
-                    {%- do conds.append(bt ~ c.name ~ bt ~ ' IS NOT NULL') %}
-                {%- endfor %}
+                {%- for c in schema -%}
+                    {%- do conds.append(bt ~ c.name ~ bt ~ ' IS NOT NULL') -%}
+                {%- endfor -%}
                 {{ conds | join(' OR ') }}
             {% endif %}
         )
     {% endset %}
 
+    {# Early return when no columns requested #}
     {% if columnNames | length == 0 %}
         {{ return(cleansed_cte ~ '\nSELECT * FROM cleansed_data') }}
     {% endif %}
 
-    {# ───────────── 2. helpers ───────────── #}
+    {# ───────────── 2) Helpers ───────────── #}
     {% set numeric_types = [
         "bigint","decimal","double","float",
         "integer","smallint","tinyint"
     ] %}
 
+    {# Map: column name -> lowercased data type #}
     {% set col_type_map = {} %}
     {% for c in schema %}
         {% do col_type_map.update({ c.name: c.dataType | lower }) %}
     {% endfor %}
 
-    {% set columns_to_select = [] %}
+    {# ───────────── 3) Build per-column override expressions ───────────── #}
+    {% set override_map = {} %}
 
-    {# ───────────── 3. per-column transforms ───────────── #}
     {% for col_name in columnNames %}
+        {% set dtype = col_type_map.get(col_name) %}
         {% set col_expr = bt ~ col_name ~ bt %}
 
         {# numeric null replacement #}
-        {% if col_type_map.get(col_name) in numeric_types
-              and replaceNullForNumericFields %}
-            {% set col_expr = "COALESCE(" ~ col_expr ~ ", " ~ replaceNullNumericWith | string ~ ")" %}
+        {% if dtype in numeric_types and replaceNullForNumericFields %}
+            {% set col_expr = "COALESCE(" ~ col_expr ~ ", " ~ (replaceNullNumericWith | string) ~ ")" %}
         {% endif %}
 
         {# string rules #}
-        {% if col_type_map.get(col_name) == "string" %}
+        {% if dtype == "string" %}
             {% if replaceNullTextFields %}
                 {% set col_expr = "COALESCE(" ~ col_expr ~ ", '" ~ replaceNullTextWith ~ "')" %}
             {% endif %}
@@ -99,33 +101,26 @@
         {% endif %}
 
         {# date / timestamp null replacement #}
-        {% if col_type_map.get(col_name) == 'date' and replaceNullDateFields %}
+        {% if dtype == 'date' and replaceNullDateFields %}
             {% set col_expr = "COALESCE(" ~ col_expr ~ ", DATE '" ~ replaceNullDateWith ~ "')" %}
         {% endif %}
-        {% if col_type_map.get(col_name) == 'timestamp' and replaceNullTimeFields %}
+        {% if dtype == 'timestamp' and replaceNullTimeFields %}
             {% set col_expr = "COALESCE(" ~ col_expr ~ ", TIMESTAMP '" ~ replaceNullTimeWith ~ "')" %}
         {% endif %}
 
-        {# final cast & alias #}
-        {% set col_expr = "CAST(" ~ col_expr ~ " AS " ~ col_type_map.get(col_name) ~ ")" %}
-        {% do columns_to_select.append(col_expr ~ ' AS ' ~ bt ~ col_name ~ bt) %}
+        {# final cast back to original dtype; store override #}
+        {% set final_expr = "CAST(" ~ col_expr ~ " AS " ~ dtype ~ ")" %}
+        {% do override_map.update({ (col_name | upper): final_expr }) %}
     {% endfor %}
 
-    {# ───────────── 4. keep original column order ───────────── #}
+    {# ───────────── 4) Keep original order, apply overrides ───────────── #}
     {% set output_columns = [] %}
     {% for c in schema %}
-        {% set override_expr = None %}
-        {% for expr in columns_to_select %}
-            {% set alias = expr.split(' AS ')[1] | replace('`','') | upper %}
-            {% if c.name | replace('`','') | replace('"','') | upper == alias %}
-                {% set override_expr = expr %}
-                {% break %}
-            {% endif %}
-        {% endfor %}
-        {% if override_expr %}
-            {% do output_columns.append(override_expr) %}
+        {% set key = c.name | replace('`','') | replace('"','') | upper %}
+        {% if key in override_map %}
+            {% do output_columns.append( override_map[key] ~ ' AS ' ~ bt ~ c.name ~ bt ) %}
         {% else %}
-            {% do output_columns.append(bt ~ c.name ~ bt) %}
+            {% do output_columns.append( bt ~ c.name ~ bt ) %}
         {% endif %}
     {% endfor %}
 
