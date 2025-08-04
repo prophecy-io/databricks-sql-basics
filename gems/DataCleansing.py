@@ -219,10 +219,6 @@ class DataCleansing(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         diagnostics = super(DataCleansing, self).validate(context, component)
-        if (component.properties.removeRowNullAllCols == False) and (len(component.properties.columnNames) == 0):
-            diagnostics.append(
-                Diagnostic("component.properties.removeRowNullAllCols",
-                           "Remove nulls from all columns or Select columns to clean", SeverityLevelEnum.Error))
 
         if len(component.properties.columnNames) > 0 :
             missingKeyColumns = [col for col in component.properties.columnNames if
