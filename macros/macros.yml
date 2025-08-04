@@ -354,7 +354,7 @@ macros:
         type: "value"
         description: "{\"ProphecyType\": \"value\"}"
     macroType: "query"
-  name: "FindDuplicates"
+  - name: "FindDuplicates"
     arguments:
       - name: "relation_name"
         type: "value"
