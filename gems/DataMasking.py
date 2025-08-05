@@ -54,17 +54,17 @@ class DataMasking(MacroSpec):
                 .addColumn(
                     StackLayout(height="100%")
                     .addElement(
-                        TextBox("Uppercase character replacement (optional)").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character")
+                        TextBox("Uppercase character replacement").bindProperty("upper_char_substitute").bindPlaceholder("Default value is 'X'. Specify NULL to retain original character")
                     ).addElement(
-                        TextBox("Lowercase character replacement (optional)").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character")
+                        TextBox("Lowercase character replacement").bindProperty("lower_char_substitute").bindPlaceholder("Default value is 'x'. Specify NULL to retain original character")
                     )
                 )
                 .addColumn(
                     StackLayout(height="100%")
                     .addElement(
-                        TextBox("Digit replacement (optional)").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character")
+                        TextBox("Digit replacement").bindProperty("digit_char_substitute").bindPlaceholder("Default value is 'n'. Specify NULL to retain original character")
                     ).addElement(
-                        TextBox("Special character replacement (optional)").bindProperty("other_char_substitute").bindPlaceholder("Default value is NULL. Specify NULL to retain original character.")
+                        TextBox("Special character replacement").bindProperty("other_char_substitute").bindPlaceholder("Default value is NULL. Specify NULL to retain original character.")
                     )
                 )
             )
