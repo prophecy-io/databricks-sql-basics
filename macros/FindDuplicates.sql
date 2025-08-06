@@ -67,31 +67,31 @@
     {%- set select_window_filter -%}
         {%- if output_type == "custom_group_count" -%}
             {%- if column_group_rownum_condition == "between" -%}
-                SELECT * FROM select_cte1 WHERE group_count BETWEEN {{ lower_limit }} AND {{ upper_limit }}
+                SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count BETWEEN {{ lower_limit }} AND {{ upper_limit }}
             {%-elif column_group_rownum_condition == "equal_to" -%}
-                SELECT * FROM select_cte1 WHERE group_count = {{ grouped_count_rownum }}
+                SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count = {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "not_equal_to" -%}
-                SELECT * FROM select_cte1 WHERE group_count <> {{ grouped_count_rownum }}
+                SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count <> {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "less_than" -%}
-                SELECT * FROM select_cte1 WHERE group_count < {{ grouped_count_rownum }}
+                SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count < {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "greater_than" -%}
-                SELECT * FROM select_cte1 WHERE group_count > {{ grouped_count_rownum }}
+                SELECT * EXCEPT(group_count) FROM select_cte1 WHERE group_count > {{ grouped_count_rownum }}
             {%- endif -%}
         {%- elif output_type == "unique" -%}
-            SELECT * FROM select_cte1 WHERE row_num = 1
+            SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num = 1
         {%- elif output_type == "duplicate" -%}
-            SELECT * FROM select_cte1 WHERE row_num > 1
+            SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num > 1
         {%- elif output_type == "custom_row_number" -%}
             {%- if column_group_rownum_condition == "between" -%}
-                SELECT * FROM select_cte1 WHERE row_num BETWEEN {{ lower_limit }} AND {{ upper_limit }}
+                SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num BETWEEN {{ lower_limit }} AND {{ upper_limit }}
             {%-elif column_group_rownum_condition == "equal_to" -%}
-                SELECT * FROM select_cte1 WHERE row_num = {{ grouped_count_rownum }}
+                SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num = {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "not_equal_to" -%}
-                SELECT * FROM select_cte1 WHERE row_num <> {{ grouped_count_rownum }}
+                SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num <> {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "less_than" -%}
-                SELECT * FROM select_cte1 WHERE row_num < {{ grouped_count_rownum }}
+                SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num < {{ grouped_count_rownum }}
             {%-elif column_group_rownum_condition == "greater_than" -%}
-                SELECT * FROM select_cte1 WHERE row_num > {{ grouped_count_rownum }}
+                SELECT * EXCEPT(row_num) FROM select_cte1 WHERE row_num > {{ grouped_count_rownum }}
             {%- endif -%}
         {%- endif -%}
     {%- endset -%}
