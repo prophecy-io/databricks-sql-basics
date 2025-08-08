@@ -22,49 +22,6 @@ class JSONParse(MacroSpec):
         sampleRecord: Optional[str] = None
         sampleSchema: Optional[str] = None
 
-    def get_type(self, value):
-        if isinstance(value, str):
-            return "string"
-        elif isinstance(value, bool):
-            return "boolean"
-        elif isinstance(value, int):
-            return "int"
-        elif isinstance(value, float):
-            return "float"
-        elif isinstance(value, dict):
-            return "struct"
-        elif isinstance(value, list):
-            return "array"
-        elif value is None:
-            return "null"
-        else:
-            return "unknown"
-
-    def flatten_json(self, obj, prefix=""):
-        flat_schema = []
-
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                full_key = f"{prefix}.{key}" if prefix else key
-                value_type = self.get_type(value)
-
-                if value_type == "struct":
-                    flat_schema.extend(self.flatten_json(value, full_key))
-                elif value_type == "array":
-                    # Handle array elements individually
-                    for i, item in enumerate(value):
-                        elem_type = self.get_type(item)
-                        index_key = f"{full_key}[{i}]"
-                        if elem_type == "struct":
-                            flat_schema.extend(self.flatten_json(item, index_key))
-                        else:
-                            flat_schema.append((index_key, elem_type))
-                else:
-                    flat_schema.append((full_key, value_type))
-
-        return flat_schema
-
-
     def get_relation_names(self,component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
