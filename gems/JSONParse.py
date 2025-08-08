@@ -132,7 +132,7 @@ root: STRUCT<
                     Step()
                     .addElement(
                         StackLayout(height="100%")
-                        .addElement(TitleElement("Select json parsing method"))
+                        .addElement(TitleElement("Select JSON parsing method"))
                         .addElement(jsonParsingRadioGroup)
                     )
                 )
