@@ -117,7 +117,7 @@ root: STRUCT<
                         ).addColumn(
                             StackLayout(height="100%")
                             .addElement(
-                                SchemaColumnsDropdown("Select recordId primary key column", appearance = "minimal")
+                                SchemaColumnsDropdown("Select primary key column", appearance = "minimal")
                                 .bindSchema("component.ports.inputs[0].schema")
                                 .bindProperty("uniqueColumnName")
                                 .showErrorsFor("uniqueColumnName")
