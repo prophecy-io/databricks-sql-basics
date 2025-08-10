@@ -83,7 +83,7 @@ root: STRUCT<
             .addOption("Output Values into Data Type Specific Fields", "output_datatype_specific_field",
                        description="This option outputs corresponding datatype 'value' of the JSON Object (key:value pair)")
             .addOption("Unnest JSON Field", "output_unnest_json_field",
-                       description="This option allows to un-nest JSON objects into columns. It goes only one level deeper into the JSON object")
+                       description="This option allows to un-nest JSON objects. It goes only one level deeper into the JSON object")
             .addOption("Flatten Array", "output_flatten_array",
                        description="This option is applicable for columns that have array values only. It allows you to expand a JSON array column by removing the square brackets. It creates a separate row for each element separated by a comma and assigns an ID for each row")
             .addOption("Parse from sample record", "parseFromSampleRecord", description="Provide a sample record to parse the schema from")
@@ -109,7 +109,7 @@ root: STRUCT<
                         ColumnsLayout(gap="1rem", height="100%").addColumn(
                             StackLayout(height="100%")
                             .addElement(
-                                SchemaColumnsDropdown("Select json column", appearance = "minimal")
+                                SchemaColumnsDropdown("Select JSON column", appearance = "minimal")
                                 .bindSchema("component.ports.inputs[0].schema")
                                 .bindProperty("jsonColumnName")
                                 .showErrorsFor("jsonColumnName")

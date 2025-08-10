@@ -1,4 +1,4 @@
-{% macro JSONParse(model, json_column, record_id_col, json_parse_method, sampleRecord, sampleSchema, max_depth=1) %}
+{% macro JsonParsingGem(model, json_column, record_id_col, json_parse_method, sampleRecord, sampleSchema, max_depth=1) %}
 
 {%- if json_parse_method != 'parseFromSampleRecord' and json_parse_method != 'parseFromSchema' -%}
       {%- set level_condition = '' -%}
@@ -59,29 +59,7 @@
           value,
           parsed_variant_js,
           depth as level_num,
-          get_json_object(
-            to_json(parsed_variant_js),
-            CONCAT(case when path RLIKE '^\\[\\d+\\]' then '$' else '$.' end, path)
-          ) AS raw_extracted,
-
-          CASE
-            WHEN REGEXP_LIKE(raw_extracted, '^(true|false|[-]?[0-9]+(\\.[0-9]+)?)$') THEN raw_extracted
-            WHEN REGEXP_LIKE(raw_extracted, '^\\[.*\\]$') THEN raw_extracted  -- JSON array
-            WHEN REGEXP_LIKE(raw_extracted, '^\\{.*\\}$') THEN raw_extracted  -- JSON object
-            ELSE
-              CONCAT(
-                '"',
-                regexp_replace(raw_extracted, '"', '\\"'),
-                '"'
-              )
-          END AS reg_col,
-
-          TRY_PARSE_JSON(
-            reg_col
-          ) AS datatype_1,
-
-          schema_of_variant(datatype_1) AS inferred_datatype
-
+          schema_of_variant(try_variant_get(parsed_variant_js, CONCAT(case when path RLIKE '^\\[\\d+\\]' then '$' else '$.' end, path))) as inferred_datatype
         FROM json_flatten_levels
         WHERE path IS NOT NULL AND path <> ''
         ORDER BY {{ record_id_col }}
@@ -96,19 +74,16 @@
         from all_levels_cte where inferred_datatype in ('STRING', 'BIGINT', 'BOOLEAN') or inferred_datatype RLIKE '^DECIMAL'
 
       {%- elif json_parse_method == 'output_single_string_field' -%}
-        select {{ record_id_col }}, concat('{{ json_column }}', '.', op_path) as JSON_Name,
-          value::string as JSON_ValueString
+        select {{ record_id_col }}, concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
         from all_levels_cte where inferred_datatype in ('STRING', 'BIGINT', 'BOOLEAN') or inferred_datatype RLIKE '^DECIMAL'
 
       {%- elif json_parse_method == 'output_unnest_json_field' -%}
-        select {{ record_id_col }}, concat('{{ json_column }}', '.', op_path) as JSON_Name,
-          value::string as JSON_ValueString
+        select {{ record_id_col }}, concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
         from all_levels_cte
 
       {%- elif json_parse_method == 'output_flatten_array' -%}
-        select {{ record_id_col }}, value::string as {{ json_column }}_flatten, substring(path, 2, length(path)-2) as {{ json_column }}_idx
-        from all_levels_cte where path RLIKE '^\\[\\d+\\]'
-        union all
+        select {{ record_id_col }}, value::string as {{ json_column }}_flatten, substring(path, 2, length(path)-2) as {{ json_column }}_idx from all_levels_cte
+          UNION ALL
         select {{ record_id_col }}, null, null from json_flatten_base where try_cast(parsed_variant_js as array<variant>) is null
       {%- endif -%}
 
