@@ -88,7 +88,7 @@
         from all_levels_cte
 
       {%- elif json_parse_method == 'output_flatten_array' -%}
-        select {{ remaining_cols_final_cols }} value::string as {{ json_column }}_flatten, substring(path, 2, length(path)-2) as {{ json_column }}_idx from all_levels_cte
+        select {{ remaining_cols_final_cols }} value::string as {{ json_column }}_flatten, try_cast(substring(path, 2, length(path)-2) as int) + 1 as {{ json_column }}_idx from all_levels_cte
           UNION ALL
         select {{ remaining_cols_final_cols }} null, null from (select {{ remaining_cols_param }} try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}) as tmp where try_cast(tmp.parsed_variant_js as array<variant>) is null
       {%- endif -%}
