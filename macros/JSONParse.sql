@@ -1,4 +1,4 @@
-{% macro JsonParsingGem(model, json_column, record_id_col, json_parse_method, sampleRecord, sampleSchema, max_depth=1) %}
+{% macro JSONParse(model, json_column, record_id_col, json_parse_method, sampleRecord, sampleSchema, max_depth=1) %}
 
 {%- if json_parse_method != 'parseFromSampleRecord' and json_parse_method != 'parseFromSchema' -%}
       {%- set level_condition = '' -%}
