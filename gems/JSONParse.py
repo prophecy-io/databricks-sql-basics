@@ -8,7 +8,7 @@ import json
 
 class JSONParse(MacroSpec):
     name: str = "JSONParse"
-    projectName: str = "orch_proj"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Parse"
     minNumOfInputPorts: int = 1
 
