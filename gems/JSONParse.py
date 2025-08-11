@@ -8,7 +8,7 @@ import json
 
 class JSONParse(MacroSpec):
     name: str = "JSONParse"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "orch_proj"
     category: str = "Parse"
     minNumOfInputPorts: int = 1
 
@@ -252,9 +252,9 @@ root: STRUCT<
                 )
 
             if component.properties.verticalparsingMethod in ('output_single_string_field', 'output_datatype_specific_field'):
-                if not (component.properties.max_recurse_limit.isdigit() and int(component.properties.max_recurse_limit) >= 1) and component.properties.max_recurse_limit != '':
+                if not (component.properties.max_recurse_limit.isdigit() and int(component.properties.max_recurse_limit) >= 101) and component.properties.max_recurse_limit != '':
                     diagnostics.append(
-                        Diagnostic("component.properties.max_recurse_limit", f"Max recurse limit should be a integer greater than or equal to 1", SeverityLevelEnum.Error)
+                        Diagnostic("component.properties.max_recurse_limit", f"Max recurse limit should be an integer greater than 100", SeverityLevelEnum.Error)
                     )
 
         return diagnostics

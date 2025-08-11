@@ -16,49 +16,30 @@
           {%- set remaining_cols_param = remaining_cols ~ ", " -%}
       {%- endif -%}
 
-      {%- if record_id_col != '' -%}
-        {%- if (json_parse_method == 'output_single_string_field' or json_parse_method == 'output_datatype_specific_field') and max_recurse_limit != '' -%}
-            WITH RECURSIVE json_flatten_base MAX RECURSION LEVEL {{ max_recurse_limit }} AS (
-              SELECT {{ remaining_cols_param }} '' as path, try_parse_json({{ json_column }}) AS value, try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}
-            )
-        {%- else -%}
-            WITH RECURSIVE json_flatten_base AS (
-              SELECT {{ remaining_cols_param }} '' as path, try_parse_json({{ json_column }}) AS value, try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}
-            )
-        {%- endif -%}
-
-      {%- else -%}
-        {%- set record_id_col = 'col_' ~ invocation_id | replace("-", "_") -%}
-
-        {%- if (json_parse_method == 'output_single_string_field' or json_parse_method == 'output_datatype_specific_field') and max_recurse_limit != '' -%}
-            WITH RECURSIVE json_flatten_base MAX RECURSION LEVEL {{ max_recurse_limit }} AS (
-              SELECT {{ remaining_cols_param }} row_number() over(order by {{ json_column }}) as `{{ record_id_col }}`, '' as path, try_parse_json({{ json_column }}) AS value, try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}
-            )
-        {%- else -%}
-            WITH RECURSIVE json_flatten_base AS (
-              SELECT {{ remaining_cols_param }} row_number() over(order by {{ json_column }}) as `{{ record_id_col }}`, '' as path, try_parse_json({{ json_column }}) AS value, try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}
-            )
-        {%- endif -%}
-
-        {%- if remaining_cols_param == "" -%}
-            {%- set remaining_cols_param = '`' ~ record_id_col ~ '`, ' -%}
-        {%- else -%}
-            {%- set remaining_cols_param = remaining_cols_param ~ '`' ~ record_id_col ~ '`, ' -%}
-        {%- endif -%}
-
+      {%- set remaining_cols_final_cols = remaining_cols_param -%}
+      {%- if record_id_col == '' -%}
+          {%- set record_id_col = 'col_' ~ invocation_id | replace("-", "_") -%}
+          {%- set remaining_cols_final_cols = remaining_cols_param ~ ' `' ~ record_id_col ~ '`, ' -%}
+          {%- set remaining_cols_param = remaining_cols_param ~ 'row_number() over(order by ' ~ json_column ~ ') AS ' ~ '`' ~ record_id_col ~ '`, ' -%}
       {%- endif -%}
 
-      , json_flatten_levels AS (
+      {%- set recurse_max_level_cond = '' -%}
+      {%- if max_recurse_limit != '' -%}
+          {%- set recurse_max_level_cond = ' MAX RECURSION LEVEL ' ~ max_recurse_limit -%}
+      {%- endif -%}
+
+
+      WITH RECURSIVE json_flatten_levels{{ recurse_max_level_cond }} AS (
       -- Base case: start from the root struct/array, at depth 0
-      SELECT {{ remaining_cols_param }} path, '' as op_path,
-      value, parsed_variant_js,
+      SELECT {{ remaining_cols_param }} '' as path, '' as op_path,
+      try_parse_json({{ json_column }}) AS value, try_parse_json({{ json_column }}) as parsed_variant_js,
       0 AS depth
-      FROM json_flatten_base
+      FROM {{ model }}
       UNION ALL
       -- Recursive step:
       -- For each struct/array, variant_explode
       -- and recurse into them, increasing the depth by 1
-      SELECT {{ remaining_cols_param }}
+      SELECT {{ remaining_cols_final_cols }}
       case when path = '' and k is NULL then concat('[', pos, ']')
           when path = '' and k is not NULL then k
           when path <> '' and k is NULL then concat(path, '[', pos, ']')
@@ -78,7 +59,7 @@
 
       , all_levels_cte AS (
         SELECT
-          {{ remaining_cols_param }}
+          {{ remaining_cols_final_cols }}
           path,
           op_path,
           value,
@@ -91,7 +72,7 @@
       )
 
       {%- if json_parse_method == 'output_datatype_specific_field' -%}
-        select {{ remaining_cols_param }} concat('{{ json_column }}', '.', op_path) as JSON_Name,
+        select {{ remaining_cols_final_cols }} concat('{{ json_column }}', '.', op_path) as JSON_Name,
           case when inferred_datatype = 'STRING' then value::string else null end as JSON_ValueString,
           case when inferred_datatype = 'BIGINT' then value::int else null end as JSON_ValueInt,
           case when inferred_datatype RLIKE '^DECIMAL' then value::float else null end as JSON_ValueFloat,
@@ -99,17 +80,17 @@
         from all_levels_cte where inferred_datatype in ('STRING', 'BIGINT', 'BOOLEAN') or inferred_datatype RLIKE '^DECIMAL'
 
       {%- elif json_parse_method == 'output_single_string_field' -%}
-        select {{ remaining_cols_param }} concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
+        select {{ remaining_cols_final_cols }} concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
         from all_levels_cte where inferred_datatype in ('STRING', 'BIGINT', 'BOOLEAN') or inferred_datatype RLIKE '^DECIMAL'
 
       {%- elif json_parse_method == 'output_unnest_json_field' -%}
-        select {{ remaining_cols_param }} concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
+        select {{ remaining_cols_final_cols }} concat('{{ json_column }}', '.', op_path) as JSON_Name, value::string as JSON_ValueString
         from all_levels_cte
 
       {%- elif json_parse_method == 'output_flatten_array' -%}
-        select {{ remaining_cols_param }} value::string as {{ json_column }}_flatten, substring(path, 2, length(path)-2) as {{ json_column }}_idx from all_levels_cte
+        select {{ remaining_cols_final_cols }} value::string as {{ json_column }}_flatten, substring(path, 2, length(path)-2) as {{ json_column }}_idx from all_levels_cte
           UNION ALL
-        select {{ remaining_cols_param }} null, null from json_flatten_base where try_cast(parsed_variant_js as array<variant>) is null
+        select {{ remaining_cols_final_cols }} null, null from (select {{ remaining_cols_param }} try_parse_json({{ json_column }}) as parsed_variant_js from {{ model }}) as tmp where try_cast(tmp.parsed_variant_js as array<variant>) is null
       {%- endif -%}
 
 {%- else -%}
