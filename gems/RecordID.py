@@ -75,7 +75,7 @@ class RecordID(MacroSpec):
                         .bindPlaceholders()
                         .withSchemaSuggestions()
                         .bindLanguage("${record.expression.format}"),
-                ),
+                        ),
                 Column(
                     "Sort strategy",
                     "sortType",
@@ -85,143 +85,150 @@ class RecordID(MacroSpec):
                         .addOption("descending nulls first", "desc_nulls_first")
                         .addOption("descending nulls last", "desc"),
                     width="25%",
-                ),
+                        ),
             ],
         )
 
         generationMethod = (
             Condition()
                 .ifEqual(
-                    PropExpr("component.properties.method"),
-                    StringExpr("incremental_id"),
-                )
+                PropExpr("component.properties.method"),
+                StringExpr("incremental_id"),
+            )
                 .then(
-                    StepContainer().addElement(
-                        Step().addElement(
-                            StackLayout(height="100%").addElement(
-                                RadioGroup("Record ID Generation Scope")
-                                    .addOption(
-                                        "Across entire table",
-                                        "tableLevel",
-                                        description="Generate a unique record ID for each row across the full dataset (no grouping).",
-                                    )
-                                    .addOption(
-                                        "Within each group",
-                                        "groupLevel",
-                                        description="Generate a unique record ID within each group defined by selected column(s).",
-                                    )
-                                    .setOptionType("button")
-                                    .setVariant("medium")
-                                    .setButtonStyle("solid")
-                                    .bindProperty("generationMethod")
+                StepContainer().addElement(
+                    Step().addElement(
+                        StackLayout(height="100%").addElement(
+                            RadioGroup("Record ID Generation Scope")
+                                .addOption(
+                                "Across entire table",
+                                "tableLevel",
+                                description="Generate a unique record ID for each row across the full dataset (no grouping).",
                             )
+                                .addOption(
+                                "Within each group",
+                                "groupLevel",
+                                description="Generate a unique record ID within each group defined by selected column(s).",
+                            )
+                                .setOptionType("button")
+                                .setVariant("medium")
+                                .setButtonStyle("solid")
+                                .bindProperty("generationMethod")
                         )
                     )
                 )
+            )
         )
 
         return Dialog("Macro").addElement(
             ColumnsLayout(gap="1rem", height="100%")
                 .addColumn(Ports(), "content")
                 .addColumn(
-                    StackLayout(gap="1rem", height="100%")
-                        .addElement(
-                            SelectBox("Record Id generation method")
-                                .addOption("UUID", "uuid")
-                                .addOption("Incremental ID", "incremental_id")
-                                .bindProperty("method")
+                StackLayout(gap="1rem", height="100%")
+                    .addElement(
+                    SelectBox("Record Id generation method")
+                        .addOption("UUID", "uuid")
+                        .addOption("Incremental ID", "incremental_id")
+                        .bindProperty("method")
+                ).addElement(
+                    Condition()
+                        .ifEqual(
+                        PropExpr("component.properties.method"),
+                        StringExpr("uuid"),
+                    ).then(
+                        TextBox(
+                            "Output Column Name", placeholder="RecordID"
+                        ).bindProperty("incremental_id_column_name")
+                    )
+                ).addElement(
+                    Condition()
+                        .ifEqual(
+                        PropExpr("component.properties.method"),
+                        StringExpr("incremental_id"),
+                    ).then(
+                        ColumnsLayout(gap="1rem")
+                            .addColumn(
+                            TextBox(
+                                "Output Column Name", placeholder="RecordID"
+                            ).bindProperty("incremental_id_column_name")
+                        ).addColumn(
+                            NumberBox(
+                                "Starting Value",
+                                placeholder="1000",
+                                minValueVar=1,
+                            ).bindProperty("incremental_id_starting_val")
                         )
-                        .addElement(
+                    )
+                )
+                    .addElement(
+                    Condition()
+                        .ifEqual(
+                        PropExpr("component.properties.method"),
+                        StringExpr("incremental_id"),
+                    )
+                        .then(
+                        StackLayout().addElement(
                             ColumnsLayout(gap="1rem")
                                 .addColumn(
-                                    TextBox(
-                                        "Output Column Name", placeholder="RecordID"
-                                    ).bindProperty("incremental_id_column_name")
-                                )
+                                SelectBox("Data type")
+                                    .addOption("string", "string")
+                                    .addOption("integer", "integer")
+                                    .bindProperty("incremental_id_type")
+                            )
                                 .addColumn(
-                                    Condition()
-                                        .ifEqual(
-                                            PropExpr("component.properties.method"),
-                                            StringExpr("incremental_id"),
-                                        )
-                                        .then(
-                                            NumberBox(
-                                                "Starting Value",
-                                                placeholder="1000",
-                                                minValueVar=1,
-                                            ).bindProperty("incremental_id_starting_val")
-                                        )
+                                Condition()
+                                    .ifEqual(
+                                    PropExpr("component.properties.incremental_id_type"),
+                                    StringExpr("string"),
                                 )
+                                    .then(
+                                    NumberBox(
+                                        "Left-pad length",
+                                        placeholder="6",
+                                        minValueVar=0,
+                                        maxValueVar=100,
+                                    ).bindProperty("incremental_id_size")
+                                )
+                            )
                         )
-                        .addElement(
-                            Condition()
-                                .ifEqual(
-                                    PropExpr("component.properties.method"),
-                                    StringExpr("incremental_id"),
-                                )
-                                .then(
-                                    StackLayout().addElement(
-                                        ColumnsLayout(gap="1rem")
-                                            .addColumn(
-                                                SelectBox("Data type")
-                                                    .addOption("string", "string")
-                                                    .addOption("integer", "integer")
-                                                    .bindProperty("incremental_id_type")
-                                            )
-                                            .addColumn(
-                                                Condition()
-                                                    .ifEqual(
-                                                        PropExpr("component.properties.incremental_id_type"),
-                                                        StringExpr("string"),
-                                                    )
-                                                    .then(
-                                                        NumberBox(
-                                                            "Left-pad length",
-                                                            placeholder="6",
-                                                            minValueVar=0,
-                                                            maxValueVar=100,
-                                                        ).bindProperty("incremental_id_size")
-                                                    )
-                                            )
-                                    )
-                                )
-                        )
-                        .addElement(
-                            SelectBox("Column position")
-                                .addOption("add as first column", "first_column")
-                                .addOption("add as last column", "last_column")
-                                .bindProperty("position")
-                        )
-                        .addElement(generationMethod)
-                        .addElement(
-                            Condition()
-                                .ifEqual(
-                                    PropExpr("component.properties.generationMethod"),
-                                    StringExpr("groupLevel"),
-                                )
-                                .then(
-                                    StepContainer().addElement(
-                                        Step().addElement(
-                                            StackLayout(height="100%")
-                                                .addElement(
-                                                    TitleElement("Configure Grouping and Sorting")
-                                                )
-                                                .addElement(TitleElement("Group By Columns"))
-                                                .addElement(
-                                                    SchemaColumnsDropdown("")
-                                                        .withMultipleSelection()
-                                                        .bindSchema("component.ports.inputs[0].schema")
-                                                        .bindProperty("groupByColumnNames")
-                                                )
-                                                .addElement(
-                                                    TitleElement("Order rows within each group (Optional)")
-                                                )
-                                                .addElement(order_by_table.bindProperty("orders"))
-                                        )
-                                    )
-                                )
-                        )
+                    )
                 )
+                    .addElement(
+                    SelectBox("Column position")
+                        .addOption("add as first column", "first_column")
+                        .addOption("add as last column", "last_column")
+                        .bindProperty("position")
+                )
+                    .addElement(generationMethod)
+                    .addElement(
+                    Condition()
+                        .ifEqual(
+                        PropExpr("component.properties.generationMethod"),
+                        StringExpr("groupLevel"),
+                    )
+                        .then(
+                        StepContainer().addElement(
+                            Step().addElement(
+                                StackLayout(height="100%")
+                                    .addElement(
+                                    TitleElement("Configure Grouping and Sorting")
+                                )
+                                    .addElement(TitleElement("Group By Columns"))
+                                    .addElement(
+                                    SchemaColumnsDropdown("")
+                                        .withMultipleSelection()
+                                        .bindSchema("component.ports.inputs[0].schema")
+                                        .bindProperty("groupByColumnNames")
+                                )
+                                    .addElement(
+                                    TitleElement("Order rows within each group (Optional)")
+                                )
+                                    .addElement(order_by_table.bindProperty("orders"))
+                            )
+                        )
+                    )
+                )
+            )
         )
 
     # -------------------------------------------------------------------------
