@@ -85,7 +85,6 @@
                 from running_totals
             ),
 
-            -- Step 1: Get distinct preliminary tile numbers in order
             distinct_tiles as (
                 select distinct
                     prelim_tile
@@ -93,7 +92,6 @@
                 from prelim_tiles
             ),
 
-            -- Step 2: Assign sequential numbers based on appearance order
             tile_map as (
                 select
                     prelim_tile,
@@ -107,7 +105,6 @@
                 from distinct_tiles
             ),
 
-            -- Step 3: Replace prelim_tile with sequential Tile_Num
             normalized_tiles as (
                 select
                     p.*,
@@ -142,7 +139,6 @@
             select * from {{ model }}
 
         {% else %}
-            -- Step 1: Assign provisional tile based on equal records
             with provisional as (
                 select
                     *,
@@ -150,7 +146,6 @@
                 from {{ model }}
             ),
 
-            -- Step 2: Adjust for "Do not split tile" logic
             {% if no_split_column %}
                 grouped as (
                     select
@@ -235,7 +230,6 @@
                 , named as (
                     select
                         *,
-                        -- human-friendly label (non-verbose)
                         case {{ output_tile_col }}
                             when 0  then 'Average'
                             when 1  then 'Above Average'
@@ -247,7 +241,6 @@
                             else concat('Tile ', cast({{ output_tile_col }} as string))
                         end as SmartTile_BaseLabel,
 
-                        -- numeric bounds for the tile (useful for verbose text and debugging)
                         case
                             when stddev_val is null or stddev_val = 0 then null
                             else mean_val + (cast({{ output_tile_col }} as double) - 0.5) * stddev_val
