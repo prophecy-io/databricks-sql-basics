@@ -9,7 +9,8 @@
         {{ log("Computing non null records count from the table for each column", info=True) }}
         {%- set withColumn_clause = [] -%}
         {% for column in column_names %}
-            {%- do withColumn_clause.append("COUNT(" ~ column ~ ") AS " ~ column ~ "_count") -%}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
+            {%- do withColumn_clause.append("COUNT(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ "_count")) -%}
         {% endfor %}
         {%- set arg_string = withColumn_clause | join(', ') -%}
         {%- set select_query = "SELECT " ~ arg_string ~ " FROM " ~ relation_name -%}
@@ -18,7 +19,8 @@
         {{ log("Computing distinct records count from the table for each column", info=True) }}
         {%- set withColumn_clause = [] -%}
         {% for column in column_names %}
-            {%- do withColumn_clause.append("COUNT(DISTINCT " ~ column ~ ") AS " ~ column ~ "_distinct_count") -%}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
+            {%- do withColumn_clause.append("COUNT(DISTINCT " ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ "_distinct_count")) -%}
         {% endfor %}
         {%- set arg_string = withColumn_clause | join(', ') -%}
         {%- set select_query = "SELECT " ~ arg_string ~ " FROM " ~ relation_name -%}

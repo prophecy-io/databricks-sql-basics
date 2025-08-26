@@ -30,17 +30,18 @@
         {%- endif -%}
 
         {%- for col in columns -%}
+            {%- set quoted_col = DatabricksSqlBasics.quote_identifier(col) -%}
             {%- if key == 'custom' -%}
                 {# For custom matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ quoted_col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- elif key == 'name' -%}
                 {# For name matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ quoted_col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- elif key == 'address' -%}
                 {# For address matching, strip punctuation from the column value #}
-                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ col ~ " AS STRING), '[[:punct:]]', ''))" -%}
+                {%- set column_value_expr = "UPPER(REGEXP_REPLACE(CAST(" ~ quoted_col ~ " AS STRING), '[[:punct:]]', ''))" -%}
             {%- else -%}
-                {%- set column_value_expr = "CAST(" ~ col ~ " AS STRING)" -%}
+                {%- set column_value_expr = "CAST(" ~ quoted_col ~ " AS STRING)" -%}
             {%- endif -%}
 
             {%- if mode == 'PURGE' -%}

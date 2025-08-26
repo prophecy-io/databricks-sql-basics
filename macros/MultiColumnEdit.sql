@@ -12,24 +12,28 @@
 
     {%- if changeOutputFieldName -%}
         {%- for col in allColumnNames -%}
-            {%- do select_expressions.append(col) -%}
+            {%- set quoted_col = DatabricksSqlBasics.quote_identifier(col) -%}
+            {%- do select_expressions.append(quoted_col) -%}
         {%- endfor -%}
         {%- for col in columnNames -%}
+            {%- set quoted_col = DatabricksSqlBasics.quote_identifier(col) -%}
             {%- if prefixSuffixOption | lower == "prefix" -%}
                 {%- set alias = prefixSuffixToBeAdded ~ col -%}
             {%- else -%}
                 {%- set alias = col ~ prefixSuffixToBeAdded -%}
             {%- endif -%}
-            {%- set expr = expressionToBeApplied | replace('column_value', col) | replace('column_name', col) -%}
-            {%- do select_expressions.append(expr ~ ' as ' ~ alias) -%}
+            {%- set quoted_alias = DatabricksSqlBasics.quote_identifier(alias) -%}
+            {%- set expr = expressionToBeApplied | replace('column_value', quoted_col) | replace('column_name', quoted_col) -%}
+            {%- do select_expressions.append(expr ~ ' as ' ~ quoted_alias) -%}
         {%- endfor -%}
     {%- else -%}
         {%- for col in allColumnNames -%}
+            {%- set quoted_col = DatabricksSqlBasics.quote_identifier(col) -%}
             {%- if col in columnNames -%}
-                {%- set expr = expressionToBeApplied | replace('column_value', col) | replace('column_name', col) -%}
-                {%- do select_expressions.append(expr ~ ' as ' ~ col) -%}
+                {%- set expr = expressionToBeApplied | replace('column_value', quoted_col) | replace('column_name', quoted_col) -%}
+                {%- do select_expressions.append(expr ~ ' as ' ~ quoted_col) -%}
             {%- else -%}
-                {%- do select_expressions.append(col) -%}
+                {%- do select_expressions.append(quoted_col) -%}
             {%- endif -%}
         {%- endfor -%}
     {%- endif -%}

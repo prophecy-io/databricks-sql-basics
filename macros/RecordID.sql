@@ -30,6 +30,12 @@
 {%- set has_order = order_by_clause | length > 0 -%}
 {%- set has_group = groupByColumnNames | length > 0 -%}
 
+{# Quote column names for PARTITION BY clause #}
+{%- set quoted_group_columns = [] -%}
+{%- for column in groupByColumnNames -%}
+    {%- do quoted_group_columns.append(DatabricksSqlBasics.quote_identifier(column)) -%}
+{%- endfor -%}
+
 {# ── 2 · Record-ID expression ─────────────────────────────────────────────── #}
 {%- if method == 'uuid' -%}
     {%- set id_expr = "uuid()" -%}
@@ -37,7 +43,7 @@
     {% set rn_expr %}
         row_number() over (
             {% if generationMethod == 'groupLevel' and has_group %}
-                partition by {{ groupByColumnNames | join(', ') }}
+                partition by {{ quoted_group_columns | join(', ') }}
             {% endif %}
             {% if generationMethod == 'groupLevel' and has_order %}
                 order by {{ order_by_clause }}

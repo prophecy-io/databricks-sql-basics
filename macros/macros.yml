@@ -1,6 +1,24 @@
 ---
 version: 2
 macros:
+  - name: "quote_identifier"
+    arguments:
+      - name: "identifier"
+        type: "value"
+        description: "{\"ProphecyType\": \"value\"}"
+    macroType: "expression"
+  - name: "unquote_identifier"
+    arguments:
+      - name: "identifier"
+        type: "value"
+        description: "{\"ProphecyType\": \"value\"}"
+    macroType: "expression"
+  - name: "safe_identifier"
+    arguments:
+      - name: "identifier"
+        type: "value"
+        description: "{\"ProphecyType\": \"value\"}"
+    macroType: "expression"
   - name: "evaluate_expression"
     arguments:
       - name: "expression"
