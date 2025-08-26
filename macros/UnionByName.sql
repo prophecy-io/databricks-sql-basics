@@ -80,13 +80,13 @@
         {%- set parts = [] -%}
 
         {%- for norm in final_columns -%}
-            {%- set alias_col = "`" ~ norm_to_original[norm] ~ "`" -%}
+            {%- set quoted_alias = DatabricksSqlBasics.quote_identifier(norm_to_original[norm]) -%}
             {%- if norm in cur_norms -%}
                 {%- set actual_idx = cur_norms.index(norm) -%}
-                {%- set actual_col = "`" ~ cur_cols[actual_idx] ~ "`" -%}
-                {%- do parts.append(actual_col ~ " as " ~ alias_col) -%}
+                {%- set quoted_actual = DatabricksSqlBasics.quote_identifier(cur_cols[actual_idx]) -%}
+                {%- do parts.append(quoted_actual ~ " as " ~ quoted_alias) -%}
             {%- else -%}
-                {%- do parts.append("null as " ~ alias_col) -%}
+                {%- do parts.append("null as " ~ quoted_alias) -%}
             {%- endif -%}
         {%- endfor -%}
 

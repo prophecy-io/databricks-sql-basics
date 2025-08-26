@@ -43,12 +43,22 @@
         {%- set window_order_by_str_param = 'ORDER BY ' ~ window_order_by_str -%}
     {%- endif -%}
 
+    {# Quote column names for PARTITION BY clause #}
+    {%- set quoted_column_names = [] -%}
+    {%- for column in column_names -%}
+        {%- do quoted_column_names.append(DatabricksSqlBasics.quote_identifier(column)) -%}
+    {%- endfor -%}
+
+    {%- set quoted_schema_columns = [] -%}
+    {%- for column in schema_columns -%}
+        {%- do quoted_schema_columns.append(DatabricksSqlBasics.quote_identifier(column)) -%}
+    {%- endfor -%}
 
     {%- set window_partition_by_str -%}
         {%- if generationMethod == "allCols" -%}
-            PARTITION BY {{ schema_columns | join(', ') }}
+            PARTITION BY {{ quoted_schema_columns | join(', ') }}
         {%- else -%}
-            PARTITION BY {{ column_names | join(', ') }}
+            PARTITION BY {{ quoted_column_names | join(', ') }}
         {% endif %}
     {% endset %}
 

@@ -19,8 +19,9 @@
     {%- set withColumn_clause = [] -%}
     {%- if enc_dec_method == "aes_encrypt" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- set args = [
-                column,
+                quoted_column,
                 "secret('" ~ aes_enc_dec_secretScope_key ~ "','" ~ aes_enc_dec_secretKey_key ~ "')",
                 "'" ~ aes_enc_dec_mode ~ "'",
                 "'DEFAULT'"
@@ -37,11 +38,11 @@
 
             {%- set arg_string = args | join(', ') -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ column) -%}
+                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("base64(aes_encrypt(" ~ arg_string ~ ")) AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
@@ -49,8 +50,9 @@
     {#
     {%- if enc_dec_method == "aes_decrypt" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- set args = [
-                "unbase64(" ~ column ~ ")",
+                "unbase64(" ~ quoted_column ~ ")",
                 "secret('" ~ aes_enc_dec_secretScope_key ~ "','" ~ aes_enc_dec_secretKey_key ~ "')",
                 "'" ~ aes_enc_dec_mode ~ "'",
                 "'DEFAULT'"
@@ -60,18 +62,19 @@
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "try_aes_decrypt" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- set args = [
-                "unbase64(" ~ column ~ ")",
+                "unbase64(" ~ quoted_column ~ ")",
                 "secret('" ~ aes_enc_dec_secretScope_key ~ "','" ~ aes_enc_dec_secretKey_key ~ "')",
                 "'" ~ aes_enc_dec_mode ~ "'",
                 "'DEFAULT'"
@@ -81,78 +84,84 @@
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "try_aes_decrypt(" ~ arg_string ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     #}
     {%- if enc_dec_method == "base64" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("base64(" ~ column ~ ") AS " ~ column) -%}
+                {%- do withColumn_clause.append("base64(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("base64(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("base64(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("base64(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("base64(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "unbase64" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ column ~ ") AS STRING) AS " ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ quoted_column ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ column ~ ") AS STRING) AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ quoted_column ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ column ~ ") AS STRING) AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("CAST(" ~ "unbase64(" ~ quoted_column ~ ") AS STRING) AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "hex" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("hex(" ~ column ~ ") AS " ~ column) -%}
+                {%- do withColumn_clause.append("hex(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("hex(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("hex(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("hex(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("hex(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "unhex" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ column ~ "), 'UTF-8') AS " ~ column) -%}
+                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ quoted_column ~ "), 'UTF-8') AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ column ~ "), 'UTF-8') AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ quoted_column ~ "), 'UTF-8') AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ column ~ "), 'UTF-8') AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("decode(" ~ "unhex(" ~ quoted_column ~ "), 'UTF-8') AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "encode" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("hex(encode(" ~ column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ column) -%}
+                {%- do withColumn_clause.append("hex(encode(" ~ quoted_column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("hex(encode(" ~ column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("hex(encode(" ~ quoted_column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("hex(encode(" ~ column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("hex(encode(" ~ quoted_column ~ ", '" ~ enc_dec_charSet ~ "')) AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
     {%- if enc_dec_method == "decode" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if change_col_name == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("decode(unhex(" ~ column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ column) -%}
+                {%- do withColumn_clause.append("decode(unhex(" ~ quoted_column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("decode(unhex(" ~ column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("decode(unhex(" ~ quoted_column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("decode(unhex(" ~ column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("decode(unhex(" ~ quoted_column ~ "), '" ~ enc_dec_charSet ~ "') AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
     {%- endif -%}
