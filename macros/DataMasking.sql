@@ -18,7 +18,8 @@
     {%- set withColumn_clause = [] -%}
     {%- if masking_method == "mask" -%}
         {% for column in column_names %}
-            {%- set args = [column] -%}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
+            {%- set args = [quoted_column] -%}
 
             {%- if upper_char_substitute == "NULL" -%}
                 {%- do args.append("upperChar => NULL") -%}
@@ -45,49 +46,56 @@
             {%- endif -%}
             {%- set arg_string = args | join(', ') -%}
             {%- if masked_column_add_method == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ column) -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("mask(" ~ arg_string ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
 
     {%- elif masking_method == "hash" -%}
         {%- if masked_column_add_method == "combinedHash_substitute" -%}
-            {%- set arg_string = column_names | join(', ') -%}
-            {%- do withColumn_clause.append("hash(" ~ arg_string ~ ") AS " ~ combined_hash_column_name) -%}
+            {%- set quoted_columns = [] -%}
+            {%- for column in column_names -%}
+                {%- do quoted_columns.append(DatabricksSqlBasics.quote_identifier(column)) -%}
+            {%- endfor -%}
+            {%- set arg_string = quoted_columns | join(', ') -%}
+            {%- do withColumn_clause.append("hash(" ~ arg_string ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(combined_hash_column_name)) -%}
         {%- else  -%}
             {% for column in column_names %}
+                {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
                 {%- if masked_column_add_method == "inplace_substitute" -%}
-                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ column) -%}
+                    {%- do withColumn_clause.append("hash(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
                 {%- elif prefix_suffix_opt == "Prefix" -%}
-                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                    {%- do withColumn_clause.append("hash(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
                 {%- else -%}
-                    {%- do withColumn_clause.append("hash(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                    {%- do withColumn_clause.append("hash(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
                 {%- endif -%}
             {% endfor %}
         {%- endif -%}
 
     {%- elif masking_method == "sha2" -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if masked_column_add_method == "inplace_substitute" -%}
-                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2_bit_length ~ ") AS " ~ column) -%}
+                {%- do withColumn_clause.append("sha2(" ~ quoted_column ~ ", " ~ sha2_bit_length ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2_bit_length ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append("sha2(" ~ quoted_column ~ ", " ~ sha2_bit_length ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append("sha2(" ~ column ~ ", " ~ sha2_bit_length ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append("sha2(" ~ quoted_column ~ ", " ~ sha2_bit_length ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
 
     {%- else -%}
         {% for column in column_names %}
+            {%- set quoted_column = DatabricksSqlBasics.quote_identifier(column) -%}
             {%- if masked_column_add_method == "inplace_substitute" -%}
-                {%- do withColumn_clause.append(masking_method ~ "(" ~ column ~ ") AS " ~ column) -%}
+                {%- do withColumn_clause.append(masking_method ~ "(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column)) -%}
             {%- elif prefix_suffix_opt == "Prefix" -%}
-                {%- do withColumn_clause.append(masking_method ~ "(" ~ column ~ ") AS " ~ prefix_suffix_val ~ column) -%}
+                {%- do withColumn_clause.append(masking_method ~ "(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(prefix_suffix_val ~ column)) -%}
             {%- else -%}
-                {%- do withColumn_clause.append(masking_method ~ "(" ~ column ~ ") AS " ~ column ~ prefix_suffix_val) -%}
+                {%- do withColumn_clause.append(masking_method ~ "(" ~ quoted_column ~ ") AS " ~ DatabricksSqlBasics.quote_identifier(column ~ prefix_suffix_val)) -%}
             {%- endif -%}
         {% endfor %}
 

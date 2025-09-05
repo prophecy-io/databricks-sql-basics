@@ -18,11 +18,14 @@
 {# Helper to quote column names inline #}
 {%- set quote_char = '`' -%}
 
+{# Quote the column name properly #}
+{%- set quoted_column_name = DatabricksSqlBasics.quote_identifier(columnName) -%}
+
 {%- if split_strategy == 'splitColumns' -%}
     WITH source AS (
         SELECT *,
             split(
-                regexp_replace(`{{ columnName }}`, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
+                regexp_replace({{ quoted_column_name }}, {{ "'" ~ pattern ~ "'" }}, '%%DELIM%%'),
                 '%%DELIM%%'
             ) AS tokens
         FROM {{ relation_name }}
@@ -53,7 +56,7 @@
     FROM {{ relation_name }} r
     LATERAL VIEW explode(
         split(
-            if(r.`{{ columnName }}` IS NULL, '', r.`{{ columnName }}`),
+            if({{ quoted_column_name }} IS NULL, '', {{ quoted_column_name }}),
             '{{ pattern }}'
         )
     ) s AS col
