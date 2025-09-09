@@ -111,7 +111,7 @@ class FuzzyMatch(MacroSpec):
                          .bindProperty("record.AddMatchField.matchFunction")
                          )
 
-        matchFields = StackLayout(gap=("1rem"), height=("100bh")) \
+        matchFields = StackLayout(gap=("1rem"), height=("100%")) \
             .addElement(TitleElement("Transformations")) \
             .addElement(
             OrderedList("Match Fields")
