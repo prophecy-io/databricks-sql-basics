@@ -67,7 +67,7 @@ class DynamicSelect(MacroSpec):
             )
             .addColumn(VerticalDivider(), width="content")
             .addColumn(
-                StackLayout(gap=("1rem"), width="50%", height=("100bh"))
+                StackLayout(gap=("1rem"), width="50%", height=("100%"))
                 .addElement(
                     StepContainer()
                         .addElement(
