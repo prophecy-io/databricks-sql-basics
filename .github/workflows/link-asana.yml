@@ -1,0 +1,402 @@
+name: Link Asana Ticket
+
+on:
+  workflow_run:
+    workflows: [automerge]
+    types: [completed]
+  pull_request:
+    types: [opened, synchronize, closed, edited]
+  push:
+    branches:
+      - 'main'
+      - 'releases/v**'
+
+jobs:
+  link-asana:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'releases/v')
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install requests
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: |
+          echo "$GITHUB_CONTEXT"
+      - name: Add comment to linked asana task and tag the ticket on merge
+        uses: jannekem/run-python-script-action@v1
+        env:
+          ASANA_ACCESS_TOKEN: ${{ secrets.ASANA_ACCESS_TOKEN }}
+          GIT_ACCESS_TOKEN: ${{ secrets.GIT_ACCESS_TOKEN }}
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED_BY: ${{ github.event.sender.login }}
+          PULL_REQUEST_NAME: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          GIT_TO_REF: ${{ github.event.pull_request.base.ref }}
+          GIT_FROM_REF: ${{ github.event.pull_request.head.ref }}
+          REPO_NAME: ${{ github.event.pull_request.base.repo.name }}
+          GIT_PR_LINK: ${{ github.event.pull_request._links.html.href }}
+          GIT_COMMIT_SHA: ${{ github.event.pull_request._links.statuses.href }}
+          IS_MERGE: ${{ github.event.pull_request.merged }}
+          ACTION: ${{ github.event.action }}
+          IS_WORKFLOW_RUN: ${{ github.event.workflow_run }}
+        with:
+          script: |
+            import requests, os, re, datetime, json, base64
+            
+            pr_title = os.environ.get("PR_TITLE")
+            is_merged = os.environ.get("IS_MERGE")
+            git_pr_link = os.environ.get("GIT_PR_LINK")
+            git_pr_link_id = git_pr_link.split("/")[-1]
+            git_commit_sha = os.environ.get("GIT_COMMIT_SHA").split("/")[-1]
+            git_commit_link = "{0}/commits/{1}".format(git_pr_link, git_commit_sha)
+            
+            # Asana field to work with and defaults
+            custom_field_name = "Engr Status"
+            
+            is_workflow_run_call = os.environ.get("IS_WORKFLOW_RUN")
+            print("Is Workflow run property is: {0}".format(is_workflow_run_call))
+            
+            # SETUP GITHUB VARIABLES
+            git_username = "abhisheks-prophecy"
+            git_workspace_prophecy = "SimpleDataLabsInc"
+            git_workspace = "prophecy-io"
+            git_key = os.environ.get("GIT_ACCESS_TOKEN")
+            assert git_key, "Git key is not present. Please provide env variable GIT_ACCESS_TOKEN"
+            repo_name = os.environ.get("REPO_NAME")
+            repo_name_prophecy = "prophecy"
+            assert repo_name, "Repo name is not present. Please provide env variable REPO_NAME"
+            pr_against_branch = os.environ.get("GIT_TO_REF")
+            pr_from_branch = os.environ.get("GIT_FROM_REF") if is_merged == "false" else pr_against_branch
+            print("PR is raised against branch: {0}".format(pr_against_branch))
+            
+            master_pr = "http" + os.environ.get("PULL_REQUEST_NAME").split("### Master PR (if PR against release* then this is mandatory)")[1].strip().split("http")[-1]
+            print(f"Master PR is: {master_pr}")
+            
+            # Get PR Commits first
+            response = requests.get(f"https://api.github.com/repos/{git_workspace}/{repo_name}/pulls/{git_pr_link_id}/commits", headers = {"Accept": "application/vnd.github.v3+json"}, auth=(git_username, git_key))
+            assert response.status_code in [200, 201], f"Getting commits from PR {git_pr_link_id} failed: {response.__dict__}"
+            
+            asana_ticket_links_commits = []
+            all_commits = [commit_details["sha"] for commit_details in response.json() if commit_details]
+            for commit in all_commits:
+              try:
+                print(f"Checking details of commit: {commit}")
+                pull_request_linked = requests.get("https://api.github.com/repos/{0}/{1}/commits/{2}/pulls".format(git_workspace, repo_name, commit),headers = {"Accept": "application/vnd.github.v3+json"}, auth=(git_username, git_key))
+                assert pull_request_linked.status_code == 200, "Getting pr for commit {0} failed. Response: {1}".format(commit, pull_request_linked.__dict__)
+                pr_link = pull_request_linked.json()[0]["url"]
+                pr_link_html = pull_request_linked.json()[0]["html_url"]
+                print(f"PR for commit {commit} is {pr_link_html}")
+                pr_body = pull_request_linked.json()[0]["body"]
+                asana_links = pr_body.split("Asana Ticket Links: <<")[1].strip().split(">>")[0].strip().split(",")
+                print(f"Asana links got {asana_links}, filtering now")
+                asana_links = [asana_link.strip() for asana_link in asana_links if "<project_id>" not in asana_link and asana_link]
+                print(f"Final asana links got {asana_links}")
+                qa_required_pr = pr_body.split("QA Required (Yes/No):")[1].strip().startswith("Yes")
+                asana_ticket_links_commits.extend(asana_links)
+              except:
+                print(f"Failed to get details of commit: {commit}")
+            asana_ticket_links_commits = list(set(asana_ticket_links_commits))
+            print(f"All asana tickets got from list of commits: {asana_ticket_links_commits}")
+            
+            # GENERATE ASANA TAG FOR TICKET
+            asana_version = ""
+            pr_against_release = True if "releases" in pr_against_branch else False
+            
+            response = requests.get(f"https://api.github.com/repos/{git_workspace_prophecy}/{repo_name_prophecy}/contents/modules/metadataV2/mweb/src/main/resources/prophecyPackages.yml?ref=master", headers = {"Accept": "application/vnd.github.v3+json"}, auth=(git_username, git_key))
+            assert response.status_code in [200, 201], f"Getting prophecyPackages.yml file failed from prophecy repo for branch master: {response.__dict__}"
+            data = base64.b64decode(response.json()["content"]).decode('utf-8')
+            try:
+              dependency_real_name = [item.split("\n")[0].strip(" =',\":") for item in data.split("uniqueProjectName") if repo_name in item][0]
+            except:
+              print("Fetching name from prophecy repo failed, using custom dependency name")
+              dependency_real_name = "ProphecySparkAlteryxScala"
+            print(f"Dependency real name from mono repo is: {dependency_real_name}")
+            
+            response = requests.get(f"https://api.github.com/repos/{git_workspace}/{repo_name}/contents/pbt_project.yml?ref={pr_from_branch}", headers = {"Accept": "application/vnd.github.v3+json"}, auth=(git_username, git_key))
+            assert response.status_code in [200, 201], f"Getting pbt_project.yml file failed for branch {pr_from_branch}: {response.__dict__}"
+            version_from_pbt_project = base64.b64decode(response.json()["content"]).decode('utf-8').split("version:")[1].split("\n")[0].strip(" =',\"")
+            print(f"Version from pbt_project.yml: {version_from_pbt_project}")
+            
+            response = requests.get(f"https://api.github.com/repos/{git_workspace}/{repo_name}/contents/gems/pom.xml?ref={pr_from_branch}", headers = {"Accept": "application/vnd.github.v3+json"}, auth=(git_username, git_key))
+            assert response.status_code in [200, 201], f"Getting pom.xml file failed for branch {pr_from_branch}: {response.__dict__}"
+            version_from_pom_xml = base64.b64decode(response.json()["content"]).decode('utf-8').split("<version>")[1].split("<")[0].strip(" =',\"")
+            print(f"Version from pom.xml: {version_from_pom_xml}")
+            
+            assert version_from_pbt_project == version_from_pom_xml, f"{version_from_pbt_project} != {version_from_pom_xml}"
+            
+            asana_version = f"{dependency_real_name}-{version_from_pbt_project}"
+            print("Asana version to tag with: {0}".format(asana_version))
+            assert asana_version, "Asana version got is: {0}".format(asana_version)
+            
+            print("PR name got is: {0}".format(os.environ.get("PULL_REQUEST_NAME")))
+            asana_ticket_links = os.environ.get("PULL_REQUEST_NAME").split("Asana Ticket Links: <<")[1].split(">>")[0].strip("() ").split(",")
+            print("Asana ticket ID that will get tagged as provided in this PR: {0}".format(asana_ticket_links))
+            asana_ticket_links = list(set([asana_ticket_link.strip() for asana_ticket_link in asana_ticket_links if asana_ticket_link]))
+            print("All asana ticket ID's: {0}".format(asana_ticket_links))
+            assert asana_ticket_links, "Asana tickets got is: {0}".format(asana_ticket_links)
+            
+            real_fix_made = os.environ.get("PULL_REQUEST_NAME").split("### Fix Made (MANDATORY)")[1].split("### Documentation")[0].strip().replace("What is the fix made?", "")
+            print("The fix made is: {0}".format(real_fix_made))
+            # assert real_fix_made and len(real_fix_made) > 50, "Fix made section is not proper - less than 50 characters."
+            assert real_fix_made, "Fix made section is not proper."
+            
+            issue_description = os.environ.get("PULL_REQUEST_NAME").split("### Current Behaviour (MANDATORY)")[1].split("### Fix Made")[0].strip().replace("What was the issue?", "")
+            print("The issue details are: {0}".format(issue_description))
+            # assert issue_description and len(issue_description) > 50, "Issue description is not proper - less than 50 characters."
+            assert issue_description, "Issue description is not proper."
+            
+            doc_links = os.environ.get("PULL_REQUEST_NAME").split("### Documentation (MANDATORY for features)")[1].split("### Asana Ticket")[0].strip().replace("Documentation or important link related to the ticket?", "")
+            print("The doc details are: {0}".format(doc_links))
+            
+            asana_base_url = "https://app.asana.com/api/1.0"
+            asana_key = os.environ.get("ASANA_ACCESS_TOKEN")
+            headers = {"Accept": "application/json","Content-Type":"application/json", "Authorization": "Bearer {0}".format(asana_key)}
+            workspace_id = "711615303573503"
+            projects_per_iteration = 40
+            
+            projects_response = requests.get(f"{asana_base_url}/projects?limit={projects_per_iteration}&workspace={workspace_id}", headers=headers)
+            assert projects_response.status_code in [200, 201], f"API failed to get asana projects: {projects_response.__dict__}"
+            projects_response = projects_response.json()
+            all_projects = projects_response["data"]
+            offset_key = projects_response["next_page"]["offset"]
+            current_sprint_project = {}
+            year = datetime.date.today().year
+            format_date = "%b %d %Y"
+            max_times = 10
+            found_sprint = False
+            while len(all_projects) > 0 or len(current_sprint_project) > 0 and max_times > 0:
+              for project in all_projects:
+                print(f"Checking for {project}")
+                if "Sprint" in project.get("name"):
+                  try:
+                    sprint_time = re.findall(r'\(.*\)', project.get("name"))[0].strip("() ")
+                    start_time_sprint = sprint_time.split("-")[0].strip()
+                    end_time_sprint = sprint_time.split("-")[1].strip()
+                    start_date_sprint =  datetime.datetime.strptime(f"{start_time_sprint.split(',')[0]} {start_time_sprint.split(',')[1].strip()}", format_date)
+                    end_date_sprint = datetime.datetime.strptime(f"{end_time_sprint.split(',')[0]} {end_time_sprint.split(',')[1].strip()}", format_date) + datetime.timedelta(days=2, hours=23, minutes=59)
+                    current_time = datetime.datetime.now()
+                    if start_date_sprint <= current_time <= end_date_sprint:
+                      print(f"Found '{project}' with date range: {start_date_sprint} < {current_time} < {end_date_sprint}")
+                      current_sprint_project = project
+                      found_sprint = True
+                      break
+                  except:
+                    print(f"Ignoring: {project.get('name')}")
+              if found_sprint:
+                break
+              if len(offset_key) < 1:
+                print(f"Breaking since no more projects as offset is nil")
+                break
+              projects_response = requests.get(f"{asana_base_url}/projects?limit={projects_per_iteration}&workspace={workspace_id}&offset={offset_key}", headers=headers).json()
+              all_projects = projects_response.get("data") or []
+              offset_key = "" if projects_response.get("next_page") == None else projects_response["next_page"]["offset"]
+              max_times = max_times - 1
+            assert found_sprint, "Unable to find a sprint to attach to"
+            print(f"Current sprint project is: {current_sprint_project}")
+            assert len(current_sprint_project) > 0, f"No current sprint project got, please contact Product/Release team"
+            
+            action = os.environ.get("ACTION")
+            print(f"Action: {action}")
+            
+            comment = ""
+            if action == "opened":
+              comment = f"PR opened against branch {pr_against_branch}: {git_pr_link}"
+            elif action == "edited":
+              comment = f"PR edited against branch {pr_against_branch}: {git_pr_link}"
+            elif action == "synchronize":
+              comment = f"PR synchronized against branch {pr_against_branch}: {git_pr_link}"
+            elif f"{is_merged}" == "true":
+              comment = f"PR merged against branch {pr_against_branch}: {git_pr_link} | Tag: {asana_version}"
+            
+            print(f"Comment is: {comment}")
+            test_plan_data = os.environ.get("PULL_REQUEST_NAME").split("### Test Plan (MANDATORY if asana has tag feature/hotfix/qa)")[1].split("###")[0]
+            qa_required = test_plan_data.split("QA Required (Yes/No):")[1].split("\n")[0].strip()
+            print(f"QA required is: {qa_required}")
+            
+            test_cases = test_plan_data.split("Please describe the tests that you expect the QA team to run to verify your changes (or the doc link)")[1].split("Test Case Examples")[0].strip().split("\n")
+            unit_test_data = "N/A"
+            if "yes" in qa_required.lower():
+              # assert len("\n".join(test_cases)) > 100, "Test cases length is less than 100 characters add better explanation please."
+              assert len(test_cases) > 0, "QA Required is yes but 0 test cases for qa specified"
+              for test_case in test_cases:
+                assert "sample test" not in test_case.lower(), f"Sample Test in given test case, please provide genuine test cases. Provided are: {test_cases}"
+            if "Unit Tests (if applicable)" in os.environ.get("PULL_REQUEST_NAME"):
+              unit_test_data = os.environ.get("PULL_REQUEST_NAME").split("### Unit Tests (if applicable)")[1].split("###")[0]
+            
+            test_plan_details = os.environ.get("PULL_REQUEST_NAME").split("### Test Plan")[1].split("###")[0]
+            mandatory_testcases = ["feature", "hotfix", "qa"]
+            feature_tag_name = "feature"
+            if comment != "":
+              enum_option_name = "In Progress"
+              for asana_ticket_id_item in asana_ticket_links:
+                asana_ticket_id = asana_ticket_id_item.split("/")[-1].strip()
+                if (len(str(asana_ticket_id)) < 4 and len(asana_ticket_id_item.split("/")) > 1):
+                  asana_ticket_id = asana_ticket_id_item.split("/")[-2].strip()
+                asana_ticket_id = asana_ticket_id.split("?")[0]
+                response_task_details = requests.get("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), headers=headers)
+                assert response_task_details.status_code in [200, 201], "Response for getting ticket detail is not 200. Got is: {0}".format(response_task_details.__dict__)
+            
+                # Add sprint to project
+                response_sprint_add = requests.post(f"https://app.asana.com/api/1.0/tasks/{asana_ticket_id}/addProject", json={"data": {"project": f"{current_sprint_project['gid']}"}},headers=headers)
+                assert response_sprint_add.status_code in [200, 201], "Response for add sprint is not 200. Got is: {0}".format(response_sprint_add.__dict__)
+            
+                all_tags = [tag["name"] for tag in response_task_details.json()["data"].get("tags")]
+                if feature_tag_name in all_tags:
+                  assert doc_links, f"No documentation link for a feature {asana_ticket_id_item}. Please add one."
+            
+                if any(x in mandatory_testcases for x in all_tags) is True:
+                  if "Sample Test Case" in test_plan_details or len(test_plan_details) < 450:
+                    assert False, f"No test cases provided for a feature/hotfix/qa ticket {asana_ticket_id_item}. Please add one."
+            
+                print("Adding comment to ticket id: {0}".format(asana_ticket_id))
+                response = requests.post("{0}/tasks/{1}/stories".format(asana_base_url, asana_ticket_id), json={"data": {"is_pinned": False,"text": comment}}, headers=headers)
+                assert response.status_code in [200, 201], "Response for add comment to ASANA is not 200. Got is: {0}".format(response.__dict__)
+                print(f"Successfully added comment:\n{comment}\nTo asana ticket {asana_ticket_id}")
+            
+                notes = response_task_details.json()["data"].get("notes").replace("<", "").replace(">","")
+                final_issue_description = issue_description
+                if "What was the issue?" not in notes:
+                  final_issue_description = issue_description + f"\n\nOld Description for Ticket\n\n{notes.strip()}"
+                  print(f"Adding existing notes/description to ticket {asana_ticket_id}: {issue_description}")
+                elif "Old Description for Ticket" in notes:
+                  notes = notes.split("Old Description for Ticket")[1].split("What is the fix made")[0].strip()
+                  if len(notes) > 0:
+                    final_issue_description = issue_description + f"\n\nOld Description for Ticket\n\n{notes.strip()}"
+                print(f"Final issue description to be replace: ========\n{final_issue_description}\n=========")
+            
+                pattern = r"(<[^>]*>|<|>)"
+                lambda_function=lambda match: match.group(0) if match.group(0).startswith("<") and match.group(0).endswith(">") else match.group(0).replace("<", "").replace(">", "")
+                html_notes = "<body><b>What was the issue?</b>\n<ISSUE_DESCRIPTION>\n\n"
+                html_notes = html_notes.replace("<ISSUE_DESCRIPTION>", re.sub(pattern,lambda_function,final_issue_description))
+                html_notes = html_notes + f"<b>What is the fix made?</b>\n{re.sub(pattern,lambda_function,real_fix_made)}\n\n"
+                html_notes = html_notes + f"<b>Test plan</b>\n{re.sub(pattern,lambda_function,test_plan_data)}\n\n"
+                html_notes = html_notes + f"<b>Unit Tests (if any)</b>\n{re.sub(pattern,lambda_function,unit_test_data)}\n\n"
+                if doc_links:
+                  html_notes = html_notes + f"<b>Documentation Links</b>\n{re.sub(pattern,lambda_function,doc_links)}\n\n"
+                all_attachments_text =""
+                if "<img" in html_notes or "![" in html_notes:
+                  matches_attachments = re.findall(r'\ssrc="([^"]+)"', html_notes)
+                  matches_pasted = re.findall(r'\[.*?\]\((.*?)\)', html_notes)
+                  matches_image_links = re.findall(r'(https://user-images.*[\w])', html_notes)
+                  all_attachments = list(set(matches_pasted + matches_attachments + matches_image_links))
+                  print(f"All attachments: {all_attachments}")
+                  if len(all_attachments) > 0:
+                    start = 0
+                    for attachment in all_attachments:
+                      if attachment.startswith("http"):
+                        all_attachments_text = all_attachments_text + f'{start+1}. <a href="{attachment}">{attachment}</a>\n'
+                        start = start + 1
+                  html_notes = re.sub("(<img.*?>)|(</img>)|(\!\[.*?\]\((.*?)\))", "", html_notes, 0, re.IGNORECASE | re.DOTALL | re.MULTILINE)
+                  html_notes = re.sub(r'\n\s*\n', '\n', html_notes)
+                html_notes = html_notes + f"<b>Image Links</b>\n{all_attachments_text}"
+                html_notes = html_notes + "</body>"
+            
+                print(f"Adding description to ticket id: {asana_ticket_id}. Detailed description: {html_notes}")
+                response = requests.put("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), json={"data": {"html_notes": html_notes}}, headers=headers)
+                assert response.status_code in [200, 201], "Response for add description to ASANA is not 200. Got is: {0}".format(response.__dict__)
+                print(f"Successfully added description:\n{comment}\nTo asana ticket {asana_ticket_id}")
+            
+                # Now updating the status
+                custom_field_data = [item for item in response_task_details.json()["data"]["custom_fields"] if item["name"] == custom_field_name][0]
+                custom_field_value_gid = [item["gid"] for item in custom_field_data["enum_options"] if item["name"] == enum_option_name][0]
+                update_json={"data": {"custom_fields": {f"{custom_field_data['gid']}": f"{custom_field_value_gid}"}}}
+                print(f"Update json {update_json} for asana ticket id {asana_ticket_id}")
+                response = requests.put("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), headers=headers, json=update_json)
+                assert response.status_code in [200, 201], "The response of update status is not as expected: {0}".format(response.__dict__)
+                print("Successfully marked status on asana ticket {0}".format(asana_ticket_id))
+            
+                print("QA required field update now")
+                assert "yes" in qa_required.lower() or "no" in qa_required.lower(), f"QA required is invalid: {qa_required}. Enter Yes or No"
+                if "yes" in qa_required.lower() or "no" in qa_required.lower():
+                  qa_custom_field_name = "QA Needed?"
+                  qa_enum_option_name = "Yes" if "yes" in qa_required.lower() else "No"
+                  qa_custom_field_data = [item for item in response_task_details.json()["data"]["custom_fields"] if item["name"] == qa_custom_field_name][0]
+                  qa_custom_field_value_gid = [item["gid"] for item in qa_custom_field_data["enum_options"] if item["name"] == qa_enum_option_name][0]
+                  qa_update_json={"data": {"custom_fields": {f"{qa_custom_field_data['gid']}": f"{qa_custom_field_value_gid}"}}}
+                  print(f"Update json {qa_update_json} for asana ticket id {asana_ticket_id}")
+                  response = requests.put("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), headers=headers, json=qa_update_json)
+                  assert response.status_code in [200, 201], "The response of update status is not as expected: {0}".format(response.__dict__)
+                  print("Successfully marked qa needed status on asana ticket {0}".format(asana_ticket_id))
+            
+            if is_merged == "true" or is_workflow_run_call:
+              print("Sending slack notification as is merge.")
+              pr_author = os.environ.get("PR_AUTHOR")
+              pr_merged_by = os.environ.get("PR_MERGED_BY")
+              slack_token = os.environ.get("SLACK_TOKEN")
+              channel = os.environ.get("SLACK_CHANNEL")
+              slack_url = "https://slack.com/api/chat.postMessage"
+              slack_message = f"""*PR Merged in repo {repo_name}*
+                • *Title:* {pr_title}
+                • *Issue Description:* {issue_description[0:100] + ' ...' if len(issue_description) > 100 else issue_description}
+                • *Fix Description:* {real_fix_made[0:100] + ' ...' if len(real_fix_made) > 100 else real_fix_made}
+                • *Details:* {comment}
+                • *Asanas:* {asana_ticket_links_commits}
+                • *Author*: {pr_author}
+                • *MergedBy*: {pr_merged_by}\n
+              """
+              response = requests.post(
+                slack_url, headers={"Authorization": f"Bearer {slack_token}","Content-Type": "application/json"},
+                json={"channel": channel,"text": slack_message}
+              )
+              assert response.status_code == 200 and response.json().get("ok"), "Asana response is: {response.__dict__}"
+            
+              print("Adding tag since it is a merge request.")
+              all_tags = requests.get("{0}/tags".format(asana_base_url), headers=headers).json()
+              tag_id = [tag["gid"] for tag in all_tags["data"] if tag["name"] == asana_version]
+              if len(tag_id) == 0:
+                print("The tag with name {0} does not exist. Creating it.".format(asana_version))
+                response = requests.get("{0}/workspaces".format(asana_base_url), headers=headers)
+                assert response.status_code == 200, "Getting workspaces failed. Response: {0}".format(response.__dict__)
+                workspace_id = response.json()["data"][0]["gid"]
+                print("Workspace id fetched is: {0}".format(workspace_id))
+                create_tag_data = {"data": {"color": "light-green", "name": asana_version, "notes": "Release tag for {0}".format(asana_version), "workspace": workspace_id}}
+                response = requests.post("{0}/tags".format(asana_base_url), json=create_tag_data, headers=headers)
+                assert response.status_code in [200, 201], "Create tag request failed. Response: {0}".format(response.__dict__)
+                tag_id = response.json()["data"]["gid"]
+              else:
+                print("Tag exists already so attaching the same tag to the ticket.")
+                tag_id = tag_id[0]
+              enum_option_name = "In Verification"
+            
+              for asana_ticket_id_item in asana_ticket_links_commits:
+                asana_ticket_id = asana_ticket_id_item.split("/")[-1]
+                if (len(str(asana_ticket_id)) < 4 and len(asana_ticket_id_item.split("/")) > 1):
+                  asana_ticket_id = asana_ticket_id_item.split("/")[-2]
+                print("Adding tag to linked commits ticket id: {0}".format(asana_ticket_id))
+                asana_ticket_id = asana_ticket_id.split("?")[0]
+                response = requests.post("{0}/tasks/{1}/addTag".format(asana_base_url, asana_ticket_id), json={"data": {"tag": tag_id}}, headers=headers)
+                assert response.status_code == 200, "Response for add tag is not 200. Got is: {0}".format(response.__dict__)
+                print("Successfully added tag {0} to linked commits asana ticket {1}".format(asana_version, asana_ticket_id))
+            
+              for asana_ticket_id_item in asana_ticket_links:
+                asana_ticket_id = asana_ticket_id_item.split("/")[-1]
+                if (len(str(asana_ticket_id)) < 4 and len(asana_ticket_id_item.split("/")) > 1):
+                  asana_ticket_id = asana_ticket_id_item.split("/")[-2]
+                print("Adding tag to ticket id: {0}".format(asana_ticket_id))
+                asana_ticket_id = asana_ticket_id.split("?")[0]
+                response = requests.post("{0}/tasks/{1}/addTag".format(asana_base_url, asana_ticket_id), json={"data": {"tag": tag_id}}, headers=headers)
+                assert response.status_code == 200, "Response for add tag is not 200. Got is: {0}".format(response.__dict__)
+                print("Successfully added tag {0} to asana ticket {1}".format(asana_version, asana_ticket_id))
+            
+                # Now updating the status
+                response_task_details = requests.get("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), headers=headers)
+                assert response_task_details.status_code in [200, 201], "Response for getting ticket detail is not 200. Got is: {0}".format(response_task_details.__dict__)
+                custom_field_data = [item for item in response_task_details.json()["data"]["custom_fields"] if item["name"] == custom_field_name][0]
+                custom_field_value_gid = [item["gid"] for item in custom_field_data["enum_options"] if item["name"] == enum_option_name][0]
+                update_json={"data": {"custom_fields": {f"{custom_field_data['gid']}": f"{custom_field_value_gid}"}}}
+                response = requests.put("{0}/tasks/{1}".format(asana_base_url, asana_ticket_id), headers=headers, json=update_json)
+                assert response.status_code in [200, 201], "The response of update status is not as expected: {0}".format(response.__dict__)
+                print("Successfully marked status on asana ticket {0}".format(asana_ticket_id))
+                if qa_required == "No":
+                  response = requests.put(f"{asana_base_url}/tasks/{asana_ticket_id}", json={"data": {"completed": True}}, headers=headers)
+                  assert response.status_code in [200, 201], "Marking complete as status failed. Response: {0}".format(response.__dict__)
+            else:
+              print("Did not attach tag and did status update to the asana ticket as it is not a merge request.")
