@@ -8,9 +8,9 @@
     allowBlankTokens=false,
     replacementText='',
     copyUnmatchedText=false,
-    tokenizeOutputMethod='split_to_columns',
+    tokenizeOutputMethod='splitColumns',
     noOfColumns=3,
-    extraColumnsHandling='drop_extra_with_warning',
+    extraColumnsHandling='dropExtraWithWarning',
     outputRootName='regex_col',
     parseColumns='[]',
     matchColumnName='regex_match',
@@ -46,96 +46,51 @@
         regexp_replace({{ columnName }}, '{{ regex_pattern }}', '{{ replacementText }}') as {{ columnName }}_replaced
         {% endif %}
     from {{ source_table }}
-    {% if errorIfNotMatched %}
-    where {{ columnName }} rlike '{{ regex_pattern }}'
-    {% endif %}
 
 {%- elif output_method_lower == 'parse' -%}
-    {# Parse mode: Extract capturing groups into separate columns #}
     {%- if parseColumns != '[]' and parseColumns != '' -%}
-        {# Extract column information from parseColumns string using string manipulation #}
-        {%- set column_configs = [] -%}
+    {# Parse the JSON string into column configurations #}
+    {%- set column_configs = fromjson(parseColumns) -%}
 
-        {# Split by columnName to find each configuration block #}
-        {%- set parts = parseColumns.split('"columnName":') -%}
-        {%- for part in parts -%}
-            {%- if '"' in part -%}
-                {# Extract column name - between first pair of quotes #}
-                {%- set name_start = part.find('"') -%}
-                {%- set name_end = part.find('"', name_start + 1) -%}
-                {%- if name_start >= 0 and name_end > name_start -%}
-                    {%- set col_name = part[name_start+1:name_end] -%}
+    {{ log("Parsed column configs: " ~ column_configs, info=True) }}
 
-                    {# Extract data type - look for "dataType": #}
-                    {%- set type_pattern = '"dataType":' -%}
-                    {%- set type_start = part.find(type_pattern) -%}
-                    {%- if type_start >= 0 -%}
-                        {%- set type_quote_start = part.find('"', type_start + type_pattern|length) -%}
-                        {%- set type_quote_end = part.find('"', type_quote_start + 1) -%}
-                        {%- if type_quote_start >= 0 and type_quote_end > type_quote_start -%}
-                            {%- set col_type = part[type_quote_start+1:type_quote_end] -%}
-                            {%- set _ = column_configs.append({'name': col_name, 'type': col_type}) -%}
-                        {%- endif -%}
-                    {%- endif -%}
-                {%- endif -%}
-            {%- endif -%}
-        {%- endfor -%}
-
-        {{ log("Extracted column configs: " ~ column_configs, info=True) }}
-
-        {%- if column_configs|length > 0 -%}
-            select
-                *,
-                {% for config in column_configs %}
-                {%- set col_type = config.type -%}
-                {% if col_type.lower() in ['string'] %}
-                regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ loop.index }}) as {{ config.name }}
-                {% elif col_type.lower() in ['int32', 'integer', 'int'] %}
-                cast(regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ loop.index }}) as int) as {{ config.name }}
-                {% elif col_type.lower() in ['double', 'float'] %}
-                cast(regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ loop.index }}) as double) as {{ config.name }}
-                {% elif col_type.lower() in ['bool', 'boolean'] %}
-                cast(regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ loop.index }}) as boolean) as {{ config.name }}
-                {% else %}
-                regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ loop.index }}) as {{ config.name }}
-                {% endif %}
-                {%- if not loop.last -%},{%- endif -%}
-                {% endfor %}
-            from {{ source_table }}
-            {% if errorIfNotMatched %}
-            where {{ columnName }} rlike '{{ regex_pattern }}'
-            {% endif %}
-        {%- else -%}
-            {# Fallback if parsing fails #}
-            select
-                *,
-                {% for i in range(1, noOfColumns + 1) %}
-                regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}{{ i }}
-                {%- if not loop.last -%},{%- endif -%}
-                {% endfor %}
-            from {{ source_table }}
-            {% if errorIfNotMatched %}
-            where {{ columnName }} rlike '{{ regex_pattern }}'
-            {% endif %}
-        {%- endif -%}
-    {%- else -%}
-        {# Use default numbered columns #}
+    {%- if column_configs|length > 0 -%}
         select
             *,
-            {% for i in range(1, noOfColumns + 1) %}
-            regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}{{ i }}
+            {%- for config in column_configs %}
+            {%- set col_name = config.columnName -%}
+            {%- set col_type = config.dataType -%}
+            {%- set regex_expr = config.rgxExpression -%}
+
+            {# Apply regex extraction and cast to appropriate data type #}
+            {% if col_type == 'string' %}
+            regexp_extract({{ columnName }}, '{{ regex_expr }}', 1) as {{ col_name }}
+            {% elif col_type == 'int' %}
+            cast(nullif(regexp_extract({{ columnName }}, '{{ regex_expr }}', 1), '') as int) as {{ col_name }}
+            {% elif col_type == 'double' %}
+            cast(nullif(regexp_extract({{ columnName }}, '{{ regex_expr }}', 1), '') as double) as {{ col_name }}
+            {% elif col_type == 'bool' %}
+            cast(nullif(regexp_extract({{ columnName }}, '{{ regex_expr }}', 1), '') as boolean) as {{ col_name }}
+            {% elif col_type == 'date' %}
+            cast(nullif(regexp_extract({{ columnName }}, '{{ regex_expr }}', 1), '') as date) as {{ col_name }}
+            {% elif col_type == 'datetime' %}
+            cast(nullif(regexp_extract({{ columnName }}, '{{ regex_expr }}', 1), '') as timestamp) as {{ col_name }}
+            {% else %}
+            {# Default to string if unknown type #}
+            regexp_extract({{ columnName }}, '{{ regex_expr }}', 1) as {{ col_name }}
+            {% endif %}
             {%- if not loop.last -%},{%- endif -%}
             {% endfor %}
         from {{ source_table }}
-        {% if errorIfNotMatched %}
-        where {{ columnName }} rlike '{{ regex_pattern }}'
-        {% endif %}
     {%- endif -%}
+{%- else -%}
+    select 'ERROR: No parseColumns provided' as error_message
+{%- endif -%}
 
 {%- elif output_method_lower == 'tokenize' -%}
     {%- set tokenize_method_lower = tokenizeOutputMethod | lower -%}
 
-    {%- if tokenize_method_lower == 'split_to_columns' -%}
+    {%- if tokenize_method_lower == 'splitColumns' -%}
         select
             *,
             {% for i in range(1, noOfColumns + 1) %}
@@ -150,28 +105,32 @@
             {%- if not loop.last -%},{%- endif -%}
             {% endfor %}
         from {{ source_table }}
-        {% if errorIfNotMatched %}
-        where {{ columnName }} rlike '{{ regex_pattern }}'
-        {% endif %}
 
-    {%- elif tokenize_method_lower == 'split_to_rows' -%}
-        with regex_matches as (
+    {%- elif tokenize_method_lower == 'splitRows' -%}
+        with split_data as (
             select
                 *,
-                regexp_extract_all({{ columnName }}, '{{ regex_pattern }}') as tokens
+                split({{ columnName }}, '{{ regex_pattern }}') as tokens
             from {{ source_table }}
         ),
         exploded_tokens as (
             select
-                * except(tokens),
-                posexplode(if(size(tokens) > 0, tokens, array(''))) as (token_position, token_value)
-            from regex_matches
+                *,
+                explode(tokens) as token_value
+            from split_data
+        ),
+        numbered_tokens as (
+            select
+                * except (tokens),
+                token_value,
+                row_number() over (partition by {{ columnName }} order by monotonically_increasing_id()) as token_position
+            from exploded_tokens
         )
         select
             *,
             token_value as {{ outputRootName }},
-            token_position + 1 as token_sequence
-        from exploded_tokens
+            token_position as token_sequence
+        from numbered_tokens
         {% if not allowBlankTokens %}
         where token_value != '' and token_value is not null
         {% endif %}
@@ -197,13 +156,6 @@
     {% if errorIfNotMatched %}
     where {{ columnName }} rlike '{{ regex_pattern }}'
     {% endif %}
-
-{%- else -%}
-    {# Default to replace mode #}
-    select
-        *,
-        regexp_replace({{ columnName }}, '{{ regex_pattern }}', '{{ replacementText }}') as {{ columnName }}_replaced
-    from {{ source_table }}
 
 {%- endif -%}
 
