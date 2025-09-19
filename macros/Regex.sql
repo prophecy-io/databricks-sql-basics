@@ -32,6 +32,7 @@
 {%- set output_method_lower = outputMethod | lower -%}
 {%- set regex_pattern = ('(?i)' if caseInsensitive else '') ~ regexExpression -%}
 {%- set source_table = relation_name -%}
+{%- set extra_handling_lower = extraColumnsHandling | lower -%}
 
 {%- if output_method_lower == 'replace' -%}
     select
@@ -90,7 +91,7 @@
 {%- elif output_method_lower == 'tokenize' -%}
     {%- set tokenize_method_lower = tokenizeOutputMethod | lower -%}
 
-    {%- if tokenize_method_lower == 'splitColumns' -%}
+    {%- if tokenize_method_lower == 'splitcolumns' -%}
         select
             *,
             {% for i in range(1, noOfColumns + 1) %}
@@ -104,9 +105,37 @@
             {% endif %}
             {%- if not loop.last -%},{%- endif -%}
             {% endfor %}
+
+            {# Handle extra columns based on extraColumnsHandling setting #}
+            {%- if extra_handling_lower == 'keepextra' -%}
+                {# Add extra columns beyond noOfColumns #}
+                {%- for i in range(noOfColumns + 1, max_regex_groups + 1) %}
+                ,{% if allowBlankTokens %}
+                coalesce(
+                    regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ i }}),
+                    ''
+                ) as {{ outputRootName }}_extra_{{ i }}
+                {% else %}
+                regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}_extra_{{ i }}
+                {% endif %}
+                {%- endfor %}
+            {%- elif extra_handling_lower == 'dropextrawithwarning' -%}
+                {{ log("WARNING: Extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ") will be dropped", info=True) }}
+            {%- elif extra_handling_lower == 'erroronextra' -%}
+                {# Validate that no extra regex groups exist beyond noOfColumns #}
+                {{ log("INFO: Checking for extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ")", info=True) }}
+                {%- for i in range(noOfColumns + 1, noOfColumns + 6) %}
+                ,case
+                    when regexp_extract({{ columnName }}, '{{ regex_pattern }}', {{ i }}) != '' then
+                        cast('ERROR: Extra regex group {{ i }} found - extraColumnsHandling set to errorOnExtra' as int)
+                    else null
+                end as _validation_group_{{ i }}
+                {%- endfor %}
+            {%- endif -%}
+
         from {{ source_table }}
 
-    {%- elif tokenize_method_lower == 'splitRows' -%}
+    {%- elif tokenize_method_lower == 'splitrows' -%}
         with split_data as (
             select
                 *,
