@@ -292,8 +292,7 @@ class Regex(MacroSpec):
                                                                                         .addOption("Double", "double")
                                                                                         .addOption("Boolean", "bool")
                                                                                         .addOption("Date", "date")
-                                                                                        .addOption("DateTime", "datetime")
-                                                                                        .bindProperty("record.dataType"),
+                                                                                        .addOption("DateTime", "datetime"),
                                                                                     width="20%"
                                                                                 ),
                                                                                 Column(
@@ -394,10 +393,9 @@ class Regex(MacroSpec):
         """Extract individual capturing group patterns from a regex string."""
         if not pattern:
             return []
-
+        pattern = re.sub(r'(?<!\\)\\(?!\\)', r'\\\\', pattern)
         groups = []
         i = 0
-
         while i < len(pattern):
             if pattern[i] == '(' and (i == 0 or pattern[i-1] != '\\'):
                 # Skip non-capturing groups (?:...) or other special groups (?=...), (?!...), etc.
@@ -425,6 +423,7 @@ class Regex(MacroSpec):
                 while j < len(pattern) and paren_count > 0:
                     if pattern[j] == '\\' and j + 1 < len(pattern):
                         j += 2
+
                         continue
                     elif pattern[j] == '(':
                         paren_count += 1
@@ -438,7 +437,6 @@ class Regex(MacroSpec):
                 i = j
             else:
                 i += 1
-
         return groups
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
@@ -456,15 +454,22 @@ class Regex(MacroSpec):
 
                 # Extract individual capturing group patterns
                 group_patterns = self.extract_capturing_groups(newState.properties.regexExpression)
+                num_groups = len(group_patterns)
 
                 # Get existing parseColumns if they exist
-                existing_parse_columns = getattr(newState.properties, 'parseColumns', [])
+                existing_parse_columns = []
+                if hasattr(newState.properties, 'parseColumns') and newState.properties.parseColumns:
+                    existing_parse_columns = newState.properties.parseColumns
 
-                # Create ColumnParse objects for each capturing group
-                for i, group_pattern in enumerate(group_patterns):
-                    if i < len(existing_parse_columns):
-                        # Preserve existing configuration, update regex expression
-                        existing_col = existing_parse_columns[i]
+                # Create or update ColumnParse objects for each capturing group
+                for i, group_pattern in enumerate(group_patterns, 1):
+                    # Check if we already have configuration for this group index
+                    existing_col = None
+                    if i <= len(existing_parse_columns):
+                        existing_col = existing_parse_columns[i-1]
+
+                    if existing_col:
+                        # Preserve existing configuration but update regex expression
                         parse_columns.append(ColumnParse(
                             columnName=existing_col.columnName,
                             dataType=existing_col.dataType,
@@ -472,15 +477,25 @@ class Regex(MacroSpec):
                         ))
                     else:
                         # Create new column with smart defaults
+                        default_name = f"regex_col{i}"
+                        default_type = self.infer_data_type_from_pattern(group_pattern)
+
                         parse_columns.append(ColumnParse(
-                            columnName=f"regex_col{i+1}",
-                            dataType=self.infer_data_type_from_pattern(group_pattern),
+                            columnName=default_name,
+                            dataType=default_type,
                             rgxExpression=group_pattern
                         ))
 
+                # If there are fewer groups now than before, truncate the list
+                # This handles cases where the regex was modified to have fewer groups
+                parse_columns = parse_columns[:num_groups]
+
             except re.error:
                 # If regex is invalid, preserve existing parseColumns if any
-                parse_columns = getattr(newState.properties, 'parseColumns', [])
+                if hasattr(newState.properties, 'parseColumns') and newState.properties.parseColumns:
+                    parse_columns = newState.properties.parseColumns
+                else:
+                    parse_columns = []
 
         newProperties = dataclasses.replace(
             newState.properties,
@@ -490,24 +505,54 @@ class Regex(MacroSpec):
         )
         return newState.bindProperties(newProperties)
 
+
+    def infer_data_type_from_pattern(self, regex_pattern):
+        """Infer likely data type from regex pattern."""
+        pattern_lower = regex_pattern.lower()
+
+        # Remove outer parentheses for analysis
+        inner_pattern = regex_pattern.strip('()')
+
+        # Check for common numeric patterns
+        if any(indicator in inner_pattern for indicator in ['\\d', '[0-9]', 'digit']):
+            # Check for decimal patterns
+            if any(decimal_indicator in inner_pattern for decimal_indicator in ['\\.', '\\.']):
+                return "double"
+            # Check for specific digit counts that suggest integers
+            elif '\\d{1,2}' in inner_pattern or '\\d{1,3}' in inner_pattern:
+                return "int"
+            elif '\\d+' in inner_pattern or '\\d{' in inner_pattern:
+                return "int"
+
+        # Check for boolean-like patterns
+        elif any(bool_pattern in pattern_lower for bool_pattern in ['true|false', 'yes|no', 'y|n', '0|1']):
+            return "bool"
+
+        # Check for date patterns
+        elif any(date_indicator in inner_pattern for date_indicator in ['\\d{4}', '\\d{2}[-/]\\d{2}', 'yyyy', 'mm', 'dd']):
+            return "date"
+
+        # Default to String for everything else
+        return "string"
+
     def apply(self, props: RegexProperties) -> str:
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         # Get the Single Table Name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
-        parseColumnsJson = [
-            json.dumps({
+        parseColumnsJson = json.dumps([
+            {
                     "columnName": fld.columnName,
                     "dataType": fld.dataType,
                     "rgxExpression": fld.rgxExpression
-                })
+                }
                 for fld in props.parseColumns
-            ]
-
+            ])
 
 
         parameter_list = [
             table_name,
+            str(parseColumnsJson),
             props.schema,
             props.selectedColumnName,
             props.regexExpression,
@@ -520,7 +565,6 @@ class Regex(MacroSpec):
             props.noOfColumns,
             props.extraColumnsHandling,
             props.outputRootName,
-            parseColumnsJson,
             props.matchColumnName,
             props.errorIfNotMatched,
         ]
@@ -537,17 +581,18 @@ class Regex(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         parseColumns = []
-        for fld in parametersMap.get('parseColumns', []):
-            fldObj = json.loads(fld)
-            parseColumns = [
+        parseCols = json.loads(parametersMap.get('parseColumns', []))
+        for fld in parseCols:
+            parseColumns.append([
                     ColumnParse(
                         columnName = fldObj.get("columnName"),
                         dataType = fldObj.get("dataType"),
                         rgxExpression = fldObj.get("rgxExpression")
                     )
-                ]
+                ])
         return Regex.RegexProperties(
             relation_name=parametersMap.get('relation_name'),
+            parseColumns=parseColumns,
             schema=parametersMap.get('schema'),
             selectedColumnName=parametersMap.get('selectedColumnName'),
             regexExpression=parametersMap.get('regexExpression'),
@@ -560,25 +605,25 @@ class Regex(MacroSpec):
             noOfColumns=int(parametersMap.get('noOfColumns')),
             extraColumnsHandling=parametersMap.get('extraColumnsHandling'),
             outputRootName=parametersMap.get('outputRootName'),
-            parseColumns=parseColumns,
             matchColumnName=parametersMap.get('matchColumnName'),
             errorIfNotMatched=bool(parametersMap.get('errorIfNotMatched')),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
-        parseColumnsJsonList = [json.dumps({
+        parseColumnsJsonList = json.dumps([{
                     "columnName": fld.columnName,
                     "dataType": fld.dataType,
                     "rgxExpression": fld.rgxExpression
-                })
+                }
                 for fld in properties.parseColumns
-            ]
+            ])
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("parseColumns", str(parseColumnsJsonList)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("selectedColumnName", str(properties.selectedColumnName)),
                 MacroParameter("outputMethod", str(properties.outputMethod)),
@@ -591,7 +636,6 @@ class Regex(MacroSpec):
                 MacroParameter("noOfColumns", str(properties.noOfColumns)),
                 MacroParameter("extraColumnsHandling", str(properties.extraColumnsHandling)),
                 MacroParameter("outputRootName", str(properties.outputRootName)),
-                MacroParameter("parseColumns", parseColumnsJsonList),
                 MacroParameter("matchColumnName", str(properties.matchColumnName)),
                 MacroParameter("errorIfNotMatched", str(properties.errorIfNotMatched)),
             ],
