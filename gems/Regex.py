@@ -19,7 +19,7 @@ class ColumnParse:
 
 class Regex(MacroSpec):
     name: str = "Regex"
-    projectName: str = "DatabricksSqlBasics"
+    projectName: str = "Gem_creator"
     category: str = "Transform"
     minNumOfInputPorts: int = 1
 
@@ -495,14 +495,16 @@ class Regex(MacroSpec):
         resolved_macro_name = f"{self.projectName}.{self.name}"
         # Get the Single Table Name
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
-        parseColumnsJson = json.dumps([{
+        parseColumnsJson = [
+            json.dumps({
                     "columnName": fld.columnName,
                     "dataType": fld.dataType,
                     "rgxExpression": fld.rgxExpression
-                }
+                })
                 for fld in props.parseColumns
             ]
-        )
+
+
 
         parameter_list = [
             table_name,
@@ -534,14 +536,16 @@ class Regex(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        parseColumns = [
-                ColumnParse(
-                    columnName = fld.get("columnName"),
-                    dataType = fld.get("dataType"),
-                    rgxExpression = fld.get("rgxExpression")
-                )
-                for fld in json.loads(parametersMap.get('parseColumns', '[]'))
-            ]
+        parseColumns = []
+        for fld in parametersMap.get('parseColumns', []):
+            fldObj = json.loads(fld)
+            parseColumns = [
+                    ColumnParse(
+                        columnName = fldObj.get("columnName"),
+                        dataType = fldObj.get("dataType"),
+                        rgxExpression = fldObj.get("rgxExpression")
+                    )
+                ]
         return Regex.RegexProperties(
             relation_name=parametersMap.get('relation_name'),
             schema=parametersMap.get('schema'),
@@ -563,14 +567,13 @@ class Regex(MacroSpec):
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
-        parseColumnsJson = json.dumps([{
+        parseColumnsJsonList = [json.dumps({
                     "columnName": fld.columnName,
                     "dataType": fld.dataType,
                     "rgxExpression": fld.rgxExpression
-                }
+                })
                 for fld in properties.parseColumns
             ]
-        )
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
@@ -588,7 +591,7 @@ class Regex(MacroSpec):
                 MacroParameter("noOfColumns", str(properties.noOfColumns)),
                 MacroParameter("extraColumnsHandling", str(properties.extraColumnsHandling)),
                 MacroParameter("outputRootName", str(properties.outputRootName)),
-                MacroParameter("parseColumns", parseColumnsJson),
+                MacroParameter("parseColumns", parseColumnsJsonList),
                 MacroParameter("matchColumnName", str(properties.matchColumnName)),
                 MacroParameter("errorIfNotMatched", str(properties.errorIfNotMatched)),
             ],
