@@ -121,34 +121,41 @@
     {%- set tokenize_method_lower = tokenizeOutputMethod | lower -%}
 
     {%- if tokenize_method_lower == 'splitcolumns' -%}
+        with extracted_array as (
+            select
+                *,
+                regexp_extract_all({{ selectedColumnName }}, '{{ regexExpression }}') as regex_matches
+            from {{ source_table }}
+        )
         select
-            *
+            * except (regex_matches)
             {%- for i in range(1, noOfColumns + 1) %},
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when size(regex_matches) = 0 then null
                 {% if allowBlankTokens -%}
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then ''
+                when size(regex_matches) < {{ i }} then ''
+                when regex_matches[{{ i - 1 }}] = '' then ''
                 {% else -%}
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then null
+                when size(regex_matches) < {{ i }} then null
+                when regex_matches[{{ i - 1 }}] = '' then null
                 {% endif -%}
-                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }})
+                else regex_matches[{{ i - 1 }}]
             end as {{ outputRootName }}{{ i }}
             {%- endfor %}
             {#- Add a space to ensure separation from the 'from' clause #}
             {% if extra_handling_lower == 'dropextrawithwarning' -%}
-                {{ log("WARNING: Extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ") will be dropped", info=True) }}
+                {{ log("WARNING: Extra regex matches beyond noOfColumns (" ~ noOfColumns ~ ") will be dropped", info=True) }}
             {% elif extra_handling_lower == 'erroronextra' -%}
-                {{ log("INFO: Checking for extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ")", info=True) }}
+                {{ log("INFO: Checking for extra regex matches beyond noOfColumns (" ~ noOfColumns ~ ")", info=True) }}
                 {% for i in range(noOfColumns + 1, noOfColumns + 6) -%}
                 ,case
-                    when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) != '' then
-                        cast('ERROR: Extra regex group {{ i }} found - extraColumnsHandling set to errorOnExtra' as int)
+                    when size(regex_matches) > {{ noOfColumns }} and size(regex_matches) >= {{ i }} then
+                        cast('ERROR: Extra regex match {{ i }} found - extraColumnsHandling set to errorOnExtra' as int)
                     else null
-                end as _validation_group_{{ i }}
+                end as _validation_match_{{ i }}
                 {%- endfor %}
             {%- endif -%}
-
-         from {{ source_table }}
+        from extracted_array
 
     {%- elif tokenize_method_lower == 'splitrows' -%}
         with regex_matches as (
