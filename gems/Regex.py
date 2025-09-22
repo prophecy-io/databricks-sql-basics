@@ -19,7 +19,7 @@ class ColumnParse:
 
 class Regex(MacroSpec):
     name: str = "Regex"
-    projectName: str = "Gem_creator"
+    projectName: str = "DatabricksSqlBasics"
     category: str = "Transform"
     minNumOfInputPorts: int = 1
 
