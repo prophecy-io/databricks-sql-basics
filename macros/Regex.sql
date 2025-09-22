@@ -60,23 +60,55 @@
                     {%- set col_type = config.dataType | default('string') -%}
                     {%- set group_index = loop.index -%}
             ,
-            {%- if col_type|lower == 'string' -%}
-            regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as {{ col_name }}
-            {%- elif col_type|lower == 'int' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as int) as {{ col_name }}
-            {%- elif col_type|lower == 'bigint' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as bigint) as {{ col_name }}
-            {%- elif col_type|lower == 'double' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as double) as {{ col_name }}
-            {%- elif col_type|lower == 'bool' or col_type|lower == 'boolean' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as boolean) as {{ col_name }}
-            {%- elif col_type|lower == 'date' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as date) as {{ col_name }}
-            {%- elif col_type|lower == 'datetime' or col_type|lower == 'timestamp' -%}
-            cast(nullif(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}), '') as timestamp) as {{ col_name }}
-            {%- else -%}
-            regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as {{ col_name }}
-            {%- endif -%}
+            {%- if col_type|lower == 'string' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }})
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'int' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as int)
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'bigint' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as bigint)
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'double' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as double)
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'bool' or col_type|lower == 'boolean' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as boolean)
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'date' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as date)
+            end as {{ col_name }}
+            {%- elif col_type|lower == 'datetime' or col_type|lower == 'timestamp' %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as timestamp)
+            end as {{ col_name }}
+            {%- else %}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }})
+            end as {{ col_name }}
+            {%- endif %}
                 {%- endif -%}
             {%- endfor %}
         from {{ source_table }}
@@ -91,13 +123,16 @@
     {%- if tokenize_method_lower == 'splitcolumns' -%}
         select
             *
-            {%- for i in range(1, noOfColumns + 1) -%}
-            ,
-            {%- if allowBlankTokens -%}
-            coalesce(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}), '') as {{ outputRootName }}{{ i }}
-            {%- else -%}
-            regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}{{ i }}
-            {%- endif -%}
+            {%- for i in range(1, noOfColumns + 1) %},
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                {% if allowBlankTokens -%}
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then ''
+                {% else -%}
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then null
+                {% endif -%}
+                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }})
+            end as {{ outputRootName }}{{ i }}
             {%- endfor %}
             {#- Add a space to ensure separation from the 'from' clause #}
             {% if extra_handling_lower == 'dropextrawithwarning' -%}
@@ -116,39 +151,43 @@
          from {{ source_table }}
 
     {%- elif tokenize_method_lower == 'splitrows' -%}
-        with split_data as (
+        with regex_matches as (
             select
                 *,
-                split({{ selectedColumnName }}, '{{ regex_pattern }}') as tokens
+                regexp_extract_all({{ selectedColumnName }}, '{{ regexExpression }}') as split_tokens
             from {{ source_table }}
         ),
         exploded_tokens as (
             select
-                *,
-                explode(tokens) as token_value
-            from split_data
+                * except (split_tokens),
+                explode(split_tokens) as token_value_new
+            from regex_matches
         ),
         numbered_tokens as (
             select
-                * except (tokens),
-                token_value,
+                *,
+                token_value_new,
                 row_number() over (partition by {{ selectedColumnName }} order by monotonically_increasing_id()) as token_position
             from exploded_tokens
         )
         select
-            *,
-            token_value as {{ outputRootName }},
+            * except (token_value_new),
+            token_value_new as {{ outputRootName }},
             token_position as token_sequence
         from numbered_tokens
         {% if not allowBlankTokens %}
-        where token_value != '' and token_value is not null
+        where token_value_new != '' and token_value_new is not null
         {% endif %}
 
     {%- else -%}
         select
             *,
             {% for i in range(1, noOfColumns + 1) %}
-            regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}{{ i }}
+            case
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then null
+                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }})
+            end as {{ outputRootName }}{{ i }}
             {%- if not loop.last -%},{%- endif -%}
             {% endfor %}
         from {{ source_table }}
