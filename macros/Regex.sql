@@ -90,38 +90,21 @@
 
     {%- if tokenize_method_lower == 'splitcolumns' -%}
         select
-            *,
-            {% for i in range(1, noOfColumns + 1) %}
-            {% if allowBlankTokens %}
-            coalesce(
-                regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}),
-                ''
-            ) as {{ outputRootName }}{{ i }}
-            {% else %}
+            *
+            {%- for i in range(1, noOfColumns + 1) -%}
+            ,
+            {%- if allowBlankTokens -%}
+            coalesce(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}), '') as {{ outputRootName }}{{ i }}
+            {%- else -%}
             regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}{{ i }}
-            {% endif %}
-            {%- if not loop.last -%},{%- endif -%}
-            {% endfor %}
-
-            {# Handle extra columns based on extraColumnsHandling setting #}
-            {%- if extra_handling_lower == 'keepextra' -%}
-                {# Add extra columns beyond noOfColumns #}
-                {%- for i in range(noOfColumns + 1, max_regex_groups + 1) %}
-                ,{% if allowBlankTokens %}
-                coalesce(
-                    regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}),
-                    ''
-                ) as {{ outputRootName }}_extra_{{ i }}
-                {% else %}
-                regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) as {{ outputRootName }}_extra_{{ i }}
-                {% endif %}
-                {%- endfor %}
-            {%- elif extra_handling_lower == 'dropextrawithwarning' -%}
+            {%- endif -%}
+            {%- endfor %}
+            {#- Add a space to ensure separation from the 'from' clause #}
+            {% if extra_handling_lower == 'dropextrawithwarning' -%}
                 {{ log("WARNING: Extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ") will be dropped", info=True) }}
-            {%- elif extra_handling_lower == 'erroronextra' -%}
-                {# Validate that no extra regex groups exist beyond noOfColumns #}
+            {% elif extra_handling_lower == 'erroronextra' -%}
                 {{ log("INFO: Checking for extra regex groups beyond noOfColumns (" ~ noOfColumns ~ ")", info=True) }}
-                {%- for i in range(noOfColumns + 1, noOfColumns + 6) %}
+                {% for i in range(noOfColumns + 1, noOfColumns + 6) -%}
                 ,case
                     when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) != '' then
                         cast('ERROR: Extra regex group {{ i }} found - extraColumnsHandling set to errorOnExtra' as int)
@@ -130,7 +113,7 @@
                 {%- endfor %}
             {%- endif -%}
 
-        from {{ source_table }}
+         from {{ source_table }}
 
     {%- elif tokenize_method_lower == 'splitrows' -%}
         with split_data as (
