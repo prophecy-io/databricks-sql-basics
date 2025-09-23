@@ -227,6 +227,11 @@ class Regex(MacroSpec):
                                                         Checkbox("Allow Blank Tokens").bindProperty("allowBlankTokens")
                                                     )
                                                     .addElement(
+                                                        TextBox("Output Root Name")
+                                                        .bindPlaceholder("Enter Generated Column Suffix")
+                                                        .bindProperty("outputRootName")
+                                                    )
+                                                    .addElement(
                                                         Condition()
                                                         .ifEqual(PropExpr("component.properties.tokenizeOutputMethod"), StringExpr("splitColumns"))
                                                         .then(
@@ -244,11 +249,6 @@ class Regex(MacroSpec):
                                                                     .addOption("Error", "error")
                                                                     .bindProperty("extraColumnsHandling")
                                                                 )
-                                                            )
-                                                            .addElement(
-                                                                TextBox("Output Root Name")
-                                                                .bindPlaceholder("Enter Generated Column Suffix")
-                                                                .bindProperty("outputRootName")
                                                             )
                                                         )
                                                     )
