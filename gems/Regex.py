@@ -20,7 +20,7 @@ class ColumnParse:
 class Regex(MacroSpec):
     name: str = "Regex"
     projectName: str = "DatabricksSqlBasics"
-    category: str = "Transform"
+    category: str = "Parse"
     minNumOfInputPorts: int = 1
 
     @dataclass(frozen=True)
