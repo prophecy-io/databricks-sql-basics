@@ -16,7 +16,7 @@ class DataCleansing(MacroSpec):
     class DataCleansingProperties(MacroProperties):
         # properties for the component with default values
         schema: str = ''
-        relation_name: List[str] = field(default_factory=list)
+        relation_name: str = ''
 
         # null check operations
         removeRowNullAllCols: bool = False
@@ -252,7 +252,7 @@ class DataCleansing(MacroSpec):
         # Handle changes in the component's state and return the new state
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
-        relation_name = self.get_relation_names(newState, context)
+        relation_name = self.get_relation_names(newState, context)[0]
 
         newProperties = dataclasses.replace(
             newState.properties,
@@ -262,13 +262,10 @@ class DataCleansing(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: DataCleansingProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + table_name + "'",
+            "'" + props.relation_name + "'",
             props.schema,
             "'" + props.modifyCase + "'",
             str(props.columnNames),
@@ -298,9 +295,9 @@ class DataCleansing(MacroSpec):
         print("parametersMapisHere")
         print(parametersMap)
         return DataCleansing.DataCleansingProperties(
-            relation_name=parametersMap.get('relation_name'),
+            relation_name=parametersMap.get('relation_name').lstrip("'").rstrip("'"),
             schema=parametersMap.get('schema'),
-            modifyCase=parametersMap.get('modifyCase'),
+            modifyCase=parametersMap.get('modifyCase').lstrip("'").rstrip("'"),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
             replaceNullTextFields=parametersMap.get('replaceNullTextFields').lower() == 'true',
             replaceNullTextWith=parametersMap.get('replaceNullTextWith')[1:-1],
@@ -317,7 +314,7 @@ class DataCleansing(MacroSpec):
             replaceNullDateFields=parametersMap.get('replaceNullDateFields').lower() == 'true',
             replaceNullDateWith=parametersMap.get('replaceNullDateWith')[1:-1],
             replaceNullTimeFields=parametersMap.get('replaceNullTimeFields').lower() == 'true',
-            replaceNullTimeWith=parametersMap.get('replaceNullTimeWith')
+            replaceNullTimeWith=parametersMap.get('replaceNullTimeWith').lstrip("'").rstrip("'")
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
