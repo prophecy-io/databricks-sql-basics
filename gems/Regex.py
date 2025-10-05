@@ -61,22 +61,13 @@ class Regex(MacroSpec):
                 .addElement(
                     StackLayout(height="100%")
                     .addElement(
-                        TitleElement("Select Column to Split")
+                        TitleElement("Select column to parse")
                     )
                     .addElement(
-                        StepContainer()
-                        .addElement(
-                            Step()
-                                .addElement(
-                                    StackLayout(height="100%")
-                                        .addElement(
-                                            SchemaColumnsDropdown("", appearance = "minimal")
-                                            .bindSchema("component.ports.inputs[0].schema")
-                                            .bindProperty("selectedColumnName")
-                                            .showErrorsFor("selectedColumnName")
-                                        )
-                                )
-                        )
+                        SchemaColumnsDropdown("")
+                        .bindSchema("component.ports.inputs[0].schema")
+                        .bindProperty("selectedColumnName")
+                        .showErrorsFor("selectedColumnName")
                     )
                     .addElement(
                         StepContainer()
@@ -164,27 +155,30 @@ class Regex(MacroSpec):
                                     )
                             )
                             .addElement(
-                                RadioGroup("Output Method")
+                                RadioGroup("Output strategy")
                                 .addOption(
                                     "Replace",
                                     "replace",
-                                    ("Replace Matched Text with Replacement Text")
+                                    description=("Replace matched text with replacement text")
                                 )
                                 .addOption(
                                     "Tokenize",
                                     "tokenize",
-                                    ("Split the incoming data using a regular expression")
+                                    description=("Split the incoming data using a regular expression")
                                 )
                                 .addOption(
                                     "Parse",
                                     "parse",
-                                    ("Separate the expression into new columns, and set the Name, Type, and Size of the new columns")
+                                    description=("Separate the value into new columns based on regex groups defined.")
                                 )
                                 .addOption(
                                     "Match",
                                     "match",
-                                    ("Append a column containing a number: 1 if the expression matched, 0 if it did not.")
+                                    description=("Create new column with 1/0 value, based on the column value matching the regex expression.")
                                 )
+                                .setOptionType("button")
+                                .setVariant("medium")
+                                .setButtonStyle("solid")
                                 .bindProperty("outputMethod")
                             )
                     )
