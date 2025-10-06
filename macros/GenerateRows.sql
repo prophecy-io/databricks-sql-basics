@@ -5,7 +5,7 @@
     loop_expr='value + 1',
     column_name='value',
     max_rows=100000,
-    force_mode=None
+    focus_mode=None
 ) %}
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("init_expr is required") %}
@@ -60,12 +60,15 @@
 
             select
                 g_src.*,
-                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
+                next_val as {{ col }},
                 _iter + 1
-            from gen g_src
-            where (
-                {{ condition_expr_sql | replace(unquoted_col, 'new_val.' ~ unquoted_col) | replace('g_src.', '') | replace('gen.', '') }}
-            )
+            from (
+                select
+                    {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as next_val,
+                    _iter
+                from gen g_src
+            ) next_gen
+            where {{ condition_expr_sql | replace(unquoted_col, 'next_gen.next_val') }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
