@@ -5,7 +5,7 @@
     loop_expr='value + 1',
     column_name='value',
     max_rows=100000,
-    force_mode=None
+    focus_mode=None
 ) %}
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("init_expr is required") %}
@@ -26,26 +26,23 @@
 
     {% if relation_name %}
         with recursive gen as (
-            select {{ alias }}.*, {{ init_expr }} as {{ col }}
+            select {{ alias }}.*, {{ init_expr }} as {{ col }}, 1 as _iter
             from {{ relation_name }} {{ alias }}
-
             union all
-
-            select g_src.*,
-                   {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}
+            select g_src.*, {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}, _iter + 1
             from gen g_src
             where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
-              and count(*) over () < {{ max_rows | int }}
+              and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
     {% else %}
         with recursive gen as (
-            select {{ init_expr }} as {{ col }}
+            select {{ init_expr }} as {{ col }}, 1 as _iter
             union all
-            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}
+            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}, _iter + 1
             from gen
             where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
-              and count(*) over () < {{ max_rows | int }}
+              and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
     {% endif %}
