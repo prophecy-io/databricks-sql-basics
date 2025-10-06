@@ -48,6 +48,8 @@
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
 
+    {% set condition_fixed = condition_expr_sql | replace(unquoted_col, 'next_val') %}
+
     {% if relation_name %}
         with recursive gen as (
             select
@@ -60,25 +62,26 @@
 
             select
                 g_src.*,
-                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
+                next_val as {{ col }},
                 _iter + 1
-            from gen g_src
-            where {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
-                  and {{ condition_expr_sql | replace(unquoted_col, '(' ~ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) ~ ')') }}
-                  and _iter < {{ max_rows | int }}
+            from (
+                select {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as next_val, _iter
+                from gen g_src
+            ) sub
+            where {{ condition_fixed }}
+              and _iter < {{ max_rows | int }}
         )
         select {{ alias }}.*, {{ col }} from gen
     {% else %}
         with recursive gen as (
-            select
-                {{ init_select }} as {{ col }},
-                1 as _iter
+            select {{ init_select }} as {{ col }}, 1 as _iter
             union all
-            select
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
-                _iter + 1
-            from gen
-            where {{ condition_expr_sql | replace(unquoted_col, '(' ~ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) ~ ')') }}
+            select next_val as {{ col }}, _iter + 1
+            from (
+                select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as next_val, _iter
+                from gen
+            ) sub
+            where {{ condition_fixed }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
