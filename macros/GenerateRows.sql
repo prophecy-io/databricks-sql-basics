@@ -49,9 +49,8 @@
     {% endif %}
 
     {% if relation_name %}
-        -- Generate rows for each row of input relation
+        -- Generate rows per input row
         with recursive gen as (
-            -- base: start from input + init value
             select
                 {{ alias }}.*,
                 {{ init_select }} as {{ col }},
@@ -60,23 +59,18 @@
 
             union all
 
-            -- recursive step: add next value
             select
-                {% set cols = adapter.get_columns_in_relation(ref(relation_name)) %}
-                {% for c in cols %}
-                    {% if c.name != unquoted_col %}
-                        g_src.{{ c.name }}{% if not loop.last %}, {% endif %}
-                    {% endif %}
-                {% endfor %},
+                {{ alias }}.*,
                 {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen g_src
+            inner join {{ relation_name }} {{ alias }} on 1=1
             where _iter < {{ max_rows | int }}
         )
         select * from gen
         where {{ condition_expr_sql }}
     {% else %}
-        -- Standalone mode
+        -- Standalone generation
         with recursive gen as (
             select {{ init_select }} as {{ col }}, 1 as _iter
             union all
