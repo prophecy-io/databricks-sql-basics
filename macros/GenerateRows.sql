@@ -24,6 +24,7 @@
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set alias = "src" %}
 
+    {# detect date/timestamp vs numeric by literal shape (simple heuristic) #}
     {% set is_timestamp = " " in init_expr %}
     {% set is_date = ("-" in init_expr) and not is_timestamp %}
     {% set init_strip = init_expr.strip() %}
@@ -42,43 +43,57 @@
         {% set init_select = init_expr %}
     {% endif %}
 
+    {# normalize condition quotes if user used double quotes #}
     {% if '"' in condition_expr and "'" not in condition_expr %}
         {% set condition_expr_sql = condition_expr.replace('"', "'") %}
     {% else %}
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
 
+    {# --- Build expressions that reference the previous value correctly --- #}
+    {# When used inside the recursive CTE, references to the generated column should be prefixed with "gen." #}
+    {% set next_expr_gen = loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) %}
+    {% set cond_expr_final = condition_expr_sql %}
+
+    {# --- relation_name provided: use struct(payload) to carry original row without column collisions --- #}
     {% if relation_name %}
         with recursive gen as (
-            -- base case: each row from input gets its own seed value
+            -- base: keep the whole input row inside a single struct column called payload,
+            -- plus the generated initial value and iteration counter
             select
-                {{ alias }}.*,
+                struct({{ alias }}.*) as payload,
                 {{ init_select }} as {{ col }},
                 1 as _iter
             from {{ relation_name }} {{ alias }}
 
             union all
 
-            -- recursive step: same input row keeps generating its sequence
+            -- recursive step: keep the same payload, compute next value from prior row (gen.{{ col }})
             select
-                g_src.* REPLACE (
-                    {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} AS {{ col }},
-                    _iter + 1 AS _iter
-                )
-            from gen g_src
+                gen.payload as payload,
+                {{ next_expr_gen }} as {{ col }},
+                _iter + 1
+            from gen
             where _iter < {{ max_rows | int }}
         )
-        select * from gen where {{ condition_expr_sql }}
+        -- final projection: expand payload.* and include the generated column
+        select
+            payload.*,
+            {{ col }}
+        from gen
+        where {{ cond_expr_final }}
     {% else %}
         with recursive gen as (
             select {{ init_select }} as {{ col }}, 1 as _iter
             union all
             select
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
+                {{ next_expr_gen }} as {{ col }},
                 _iter + 1
             from gen
             where _iter < {{ max_rows | int }}
         )
-        select {{ col }} from gen where {{ condition_expr_sql }}
+        select {{ col }}
+        from gen
+        where {{ cond_expr_final }}
     {% endif %}
 {% endmacro %}
