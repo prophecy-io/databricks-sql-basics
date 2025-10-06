@@ -5,7 +5,7 @@
     loop_expr='value + 1',
     column_name='value',
     max_rows=100000,
-    focus_mode=None
+    force_mode=None
 ) %}
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("init_expr is required") %}
@@ -24,22 +24,31 @@
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set alias = "src" %}
 
-    {% set maybe_date = "-" in init_expr %}
-    {% if maybe_date %}
-        {% set init_strip = init_expr.strip() %}
-        {% if init_strip.startswith("'") or init_strip.startswith('"') %}
-            {% set init_value = init_strip %}
-        {% else %}
-            {% set init_value = "'" ~ init_strip ~ "'" %}
-        {% endif %}
+    {# --- Detect type based on literal pattern --- #}
+    {% set is_timestamp = " " in init_expr %}
+    {% set is_date = ("-" in init_expr) and not is_timestamp %}
+    {% set init_strip = init_expr.strip() %}
+
+    {# --- Quote bare literals --- #}
+    {% if init_strip.startswith("'") or init_strip.startswith('"') %}
+        {% set init_value = init_strip %}
+    {% else %}
+        {% set init_value = "'" ~ init_strip ~ "'" %}
+    {% endif %}
+
+    {# --- Apply correct cast --- #}
+    {% if is_timestamp %}
+        {% set init_select = "to_timestamp(" ~ init_value ~ ")" %}
+    {% elif is_date %}
         {% set init_select = "to_date(" ~ init_value ~ ")" %}
-        {% if '"' in condition_expr and "'" not in condition_expr %}
-            {% set condition_expr_sql = condition_expr.replace('"', "'") %}
-        {% else %}
-            {% set condition_expr_sql = condition_expr %}
-        {% endif %}
     {% else %}
         {% set init_select = init_expr %}
+    {% endif %}
+
+    {# --- Fix condition_expr quotes if user used " instead of ' --- #}
+    {% if '"' in condition_expr and "'" not in condition_expr %}
+        {% set condition_expr_sql = condition_expr.replace('"', "'") %}
+    {% else %}
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
 
