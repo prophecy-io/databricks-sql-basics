@@ -23,17 +23,31 @@
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set alias = "src" %}
-    {% set is_date = ("-" in init_expr) %}
+
+    {% set maybe_date = "-" in init_expr %}
+    {% if maybe_date %}
+        {% set init_strip = init_expr.strip() %}
+        {% if init_strip.startswith("'") or init_strip.startswith('"') %}
+            {% set init_value = init_strip %}
+        {% else %}
+            {% set init_value = "'" ~ init_strip ~ "'" %}
+        {% endif %}
+        {% set init_select = "to_date(" ~ init_value ~ ")" %}
+        {% if '"' in condition_expr and "'" not in condition_expr %}
+            {% set condition_expr_sql = condition_expr.replace('"', "'") %}
+        {% else %}
+            {% set condition_expr_sql = condition_expr %}
+        {% endif %}
+    {% else %}
+        {% set init_select = init_expr %}
+        {% set condition_expr_sql = condition_expr %}
+    {% endif %}
 
     {% if relation_name %}
         with recursive gen as (
             select
                 {{ alias }}.*,
-                {% if is_date %}
-                    to_date({{ init_expr }})
-                {% else %}
-                    {{ init_expr }}
-                {% endif %} as {{ col }},
+                {{ init_select }} as {{ col }},
                 1 as _iter
             from {{ relation_name }} {{ alias }}
 
@@ -44,25 +58,21 @@
                 {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen g_src
-            where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
+            where {{ condition_expr_sql | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
     {% else %}
         with recursive gen as (
             select
-                {% if is_date %}
-                    to_date({{ init_expr }})
-                {% else %}
-                    {{ init_expr }}
-                {% endif %} as {{ col }},
+                {{ init_select }} as {{ col }},
                 1 as _iter
             union all
             select
                 {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen
-            where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
+            where {{ condition_expr_sql | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
