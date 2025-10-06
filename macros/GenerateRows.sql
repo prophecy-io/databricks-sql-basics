@@ -2,7 +2,7 @@
     relation_name=None,
     init_expr='1',
     condition_expr='value <= 10',
-    loop_expr='1',
+    loop_expr='value + 1',
     column_name='value',
     max_rows=100000,
     force_mode=None
@@ -22,60 +22,31 @@
 
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
-    {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
-    {% set self_ref = unquoted_col in loop_expr_lc %}
 
-    {% if self_ref or force_mode == 'recursive' %}
     {% if relation_name %}
         with recursive gen as (
-            select {{ alias }}.*, {{ init_expr }} as {{ col }}, 1 as iteration
+            select {{ alias }}.*, {{ init_expr }} as {{ col }}
             from {{ relation_name }} {{ alias }}
+
             union all
+
             select g_src.*,
-                   {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
-                   iteration + 1
+                   {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}
             from gen g_src
             where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
-              and iteration < {{ max_rows | int }}
+              and count(*) over () < {{ max_rows | int }}
         )
-        select * from gen order by iteration
+        select {{ col }} from gen
     {% else %}
         with recursive gen as (
-            select {{ init_expr }} as {{ col }}, 1 as iteration
+            select {{ init_expr }} as {{ col }}
             union all
-            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}, iteration + 1
+            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}
             from gen
             where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
-              and iteration < {{ max_rows | int }}
+              and count(*) over () < {{ max_rows | int }}
         )
-        select * from gen order by iteration
-    {% endif %}
-    {% else %}
-    {% if relation_name %}
-        with base as (
-            select * from {{ relation_name }}
-        ),
-        gen as (
-            select b.*, explode(sequence(1, {{ max_rows | int }})) as _iter
-            from base b
-        ),
-        calc as (
-            select *,
-                   (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }}
-            from gen
-        )
-        select * from calc where {{ condition_expr }} order by _iter
-    {% else %}
-        with gen as (
-            select explode(sequence(1, {{ max_rows | int }})) as _iter
-        ),
-        calc as (
-            select (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }},
-                   _iter
-            from gen
-        )
-        select * from calc where {{ condition_expr }} order by _iter
-    {% endif %}
+        select {{ col }} from gen
     {% endif %}
 {% endmacro %}
