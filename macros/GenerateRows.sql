@@ -7,17 +7,6 @@
     max_rows=100000,
     force_mode=None
 ) %}
-    {# ===========================================================
-       🧠 PURPOSE
-       Replicates Alteryx "Generate Rows" functionality in Databricks SQL.
-       Supports both:
-         - Linear (arithmetic/date increment)
-         - Dynamic (recursive / data-dependent) generation.
-       =========================================================== #}
-
-    {# ===========================================================
-       🛡️ Normalize inputs: stringify unquoted expressions
-       =========================================================== #}
     {% if init_expr is none %}
         {% set init_expr = 'None' %}
     {% elif not (init_expr is string) %}
@@ -36,9 +25,6 @@
         {% set loop_expr = "'" ~ loop_expr ~ "'" %}
     {% endif %}
 
-    {# ===========================================================
-       🛡️ Safety checks
-       =========================================================== #}
     {% if init_expr == 'None' %}
         {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL string expression.") %}
     {% endif %}
@@ -49,32 +35,19 @@
         {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL string expression.") %}
     {% endif %}
 
-    {# ===========================================================
-       🧱 Base setup
-       =========================================================== #}
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
 
-    {# ===========================================================
-       🧮 Ensure valid max_rows
-       =========================================================== #}
-    {% if max_rows is none or max_rows == '' or (max_rows | string | regex_search('[^0-9]')) %}
+    {% if max_rows is none or max_rows == '' %}
         {% set max_rows = 100000 %}
     {% endif %}
 
-    {# ===========================================================
-       ⚙️ Mode Detection
-       =========================================================== #}
     {% if force_mode == 'linear'
        or ('+' in loop_expr_lc and unquoted_col not in loop_expr_lc)
        or ('interval' in loop_expr_lc and unquoted_col not in loop_expr_lc)
     %}
-
-    -- ========================================
-    -- 🟢 LINEAR / ARITHMETIC MODE
-    -- ========================================
     {% if relation_name %}
         with base as (
             select * from {{ relation_name }}
@@ -82,7 +55,7 @@
         gen as (
             select
                 b.*,
-                explode(sequence(1, {{ max_rows }})) as _iter
+                explode(sequence(1, {{ max_rows | int }})) as _iter
             from base b
         ),
         calc as (
@@ -90,11 +63,9 @@
                 *,
                 case
                     when try_to_date({{ init_expr }}) is not null then
-                        -- ✅ Date logic using date_add
                         cast(date_add(cast({{ init_expr }} as date),
                                       (_iter - 1) * coalesce(cast({{ loop_expr }} as int), 1)) as date)
                     else
-                        -- ✅ Numeric sequence
                         cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
                 end as {{ col }}
             from gen
@@ -105,7 +76,7 @@
         order by _iter
     {% else %}
         with gen as (
-            select explode(sequence(1, {{ max_rows }})) as _iter
+            select explode(sequence(1, {{ max_rows | int }})) as _iter
         ),
         calc as (
             select
@@ -124,31 +95,22 @@
         where {{ condition_expr }}
         order by _iter
     {% endif %}
-
     {% else %}
-
-    -- ========================================
-    -- 🔵 DYNAMIC / RECURSIVE MODE
-    -- ========================================
     {% if relation_name %}
         with recursive gen as (
-            -- Step 1: Initialize
             select
                 {{ alias }}.*,
                 {{ init_expr }} as {{ col }},
                 1 as iteration
             from {{ relation_name }} {{ alias }}
-
             union all
-
-            -- Step 2: Iterate
             select
                 g_src.*,
                 {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 iteration + 1
             from gen g_src
             where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
-              and iteration < {{ max_rows }}
+              and iteration < {{ max_rows | int }}
         )
         select *
         from gen
@@ -158,20 +120,17 @@
             select
                 {{ init_expr }} as {{ col }},
                 1 as iteration
-
             union all
-
             select
                 {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
                 iteration + 1
             from gen
             where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
-              and iteration < {{ max_rows }}
+              and iteration < {{ max_rows | int }}
         )
         select *
         from gen
         order by iteration
     {% endif %}
-
     {% endif %}
 {% endmacro %}
