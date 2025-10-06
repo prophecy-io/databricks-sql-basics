@@ -41,18 +41,19 @@
 {%- set regex_pattern = ('(?i)' if caseInsensitive else '') ~ escaped_regex -%}
 {%- set source_table = relation_name -%}
 {%- set extra_handling_lower = extraColumnsHandling | lower -%}
+{%- set quoted_selected = DatabricksSqlBasics.quote_identifier(selectedColumnName) -%}
 
 {%- if output_method_lower == 'replace' -%}
     select
         *,
         {% if copyUnmatchedText %}
         case
-            when {{ selectedColumnName }} rlike '{{ regex_pattern }}' then
-                regexp_replace({{ selectedColumnName }}, '{{ regex_pattern }}', '{{ replacementText | replace("'", "''") }}')
-            else {{ selectedColumnName }}
-        end as {{ selectedColumnName }}_replaced
+            when {{ quoted_selected }} rlike '{{ regex_pattern }}' then
+                regexp_replace({{ quoted_selected }}, '{{ regex_pattern }}', '{{ replacementText | replace("'", "''") }}')
+            else {{ quoted_selected }}
+        end as {{ DatabricksSqlBasics.quote_identifier(selectedColumnName ~ '_replaced') }}
         {% else %}
-        regexp_replace({{ selectedColumnName }}, '{{ regex_pattern }}', '{{ replacementText | replace("'", "''") }}') as {{ selectedColumnName }}_replaced
+        regexp_replace({{ quoted_selected }}, '{{ regex_pattern }}', '{{ replacementText | replace("'", "''") }}') as {{ DatabricksSqlBasics.quote_identifier(selectedColumnName ~ '_replaced') }}
         {% endif %}
     from {{ source_table }}
 
@@ -68,52 +69,52 @@
             ,
             {%- if col_type|lower == 'string' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }})
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }})
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'int' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as int)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as int)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'bigint' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as bigint)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as bigint)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'double' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as double)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as double)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'bool' or col_type|lower == 'boolean' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as boolean)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as boolean)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'date' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as date)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as date)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- elif col_type|lower == 'datetime' or col_type|lower == 'timestamp' %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else cast(regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) as timestamp)
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else cast(regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) as timestamp)
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- else %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
-                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ group_index }})
-            end as {{ col_name }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }}) = '' then null
+                else regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ group_index }})
+            end as {{ DatabricksSqlBasics.quote_identifier(col_name) }}
             {%- endif %}
                 {%- endif -%}
             {%- endfor %}
@@ -134,15 +135,15 @@
                 *
                 {%- for i in range(1, noOfColumns + 1) %},
                 case
-                    when {{ selectedColumnName }} rlike '{{ regex_pattern }}' then
+                    when {{ quoted_selected }} rlike '{{ regex_pattern }}' then
                         case
-                            when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then
+                            when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ i }}) = '' then
                                 case when {{ allowBlankTokens | lower }} then '' else cast(null as string) end
-                            else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }})
+                            else regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ i }})
                         end
                     else
                         case when {{ allowBlankTokens | lower }} then '' else cast(null as string) end
-                end as {{ outputRootName }}{{ i }}
+                end as {{ DatabricksSqlBasics.quote_identifier(outputRootName ~ i) }}
                 {%- endfor %}
             from {{ source_table }}
         {%- else -%}
@@ -150,7 +151,7 @@
             with extracted_array as (
                 select
                     *,
-                    regexp_extract_all({{ selectedColumnName }}, '{{ regex_pattern }}') as regex_matches
+                    regexp_extract_all({{ quoted_selected }}, '{{ regex_pattern }}') as regex_matches
                 from {{ source_table }}
             )
             select
@@ -163,7 +164,7 @@
                     when regex_matches[{{ i - 1 }}] = '' then
                         case when {{ allowBlankTokens | lower }} then '' else cast(null as string) end
                     else regex_matches[{{ i - 1 }}]
-                end as {{ outputRootName }}{{ i }}
+                end as {{ DatabricksSqlBasics.quote_identifier(outputRootName ~ i) }}
                 {%- endfor %}
             from extracted_array
         {%- endif -%}
@@ -179,7 +180,7 @@
         with regex_matches as (
             select
                 *,
-                regexp_extract_all({{ selectedColumnName }}, '{{ regex_pattern }}') as split_tokens
+                regexp_extract_all({{ quoted_selected }}, '{{ regex_pattern }}') as split_tokens
             from {{ source_table }}
         ),
         exploded_tokens as (
@@ -192,12 +193,12 @@
             select
                 *,
                 token_value_new,
-                row_number() over (partition by {{ selectedColumnName }} order by monotonically_increasing_id()) as token_position
+                row_number() over (partition by {{ quoted_selected }} order by monotonically_increasing_id()) as token_position
             from exploded_tokens
         )
         select
             * except (token_value_new),
-            token_value_new as {{ outputRootName }},
+            token_value_new as {{ DatabricksSqlBasics.quote_identifier(outputRootName) }},
             token_position as token_sequence
         from numbered_tokens
         {% if not allowBlankTokens %}
@@ -209,10 +210,10 @@
             *,
             {% for i in range(1, noOfColumns + 1) %}
             case
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', 0) = '' then null
-                when regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }}) = '' then null
-                else regexp_extract({{ selectedColumnName }}, '{{ regex_pattern }}', {{ i }})
-            end as {{ outputRootName }}{{ i }}
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', 0) = '' then null
+                when regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ i }}) = '' then null
+                else regexp_extract({{ quoted_selected }}, '{{ regex_pattern }}', {{ i }})
+            end as {{ DatabricksSqlBasics.quote_identifier(outputRootName ~ i) }}
             {%- if not loop.last -%},{%- endif -%}
             {% endfor %}
         from {{ source_table }}
@@ -222,13 +223,13 @@
     select
         *,
         case
-            when {{ selectedColumnName }} is null then 0
-            when {{ selectedColumnName }} rlike '{{ regex_pattern }}' then 1
+            when {{ quoted_selected }} is null then 0
+            when {{ quoted_selected }} rlike '{{ regex_pattern }}' then 1
             else 0
-        end as {{ matchColumnName }}
+        end as {{ DatabricksSqlBasics.quote_identifier(matchColumnName) }}
     from {{ source_table }}
     {% if errorIfNotMatched %}
-    where {{ selectedColumnName }} rlike '{{ regex_pattern }}'
+    where {{ quoted_selected }} rlike '{{ regex_pattern }}'
     {% endif %}
 
 {%- else -%}
