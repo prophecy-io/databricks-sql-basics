@@ -42,28 +42,11 @@
         {% set init_select = init_expr %}
     {% endif %}
 
-    {# normalize condition: convert double quotes to single, strip backticked column forms and remove any gen/g_src/alias prefixes so replacement is predictable #}
     {% if '"' in condition_expr and "'" not in condition_expr %}
         {% set condition_expr_sql = condition_expr.replace('"', "'") %}
     {% else %}
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
-    {% set condition_expr_sql = condition_expr_sql | replace('`' ~ unquoted_col ~ '`', unquoted_col) %}
-    {% set condition_expr_sql = condition_expr_sql | replace('gen.' ~ unquoted_col, unquoted_col) %}
-    {% set condition_expr_sql = condition_expr_sql | replace('g_src.' ~ unquoted_col, unquoted_col) %}
-    {% set condition_expr_sql = condition_expr_sql | replace(alias ~ '.' ~ unquoted_col, unquoted_col) %}
-
-    {# normalize loop_expr similarly so replacements below are predictable #}
-    {% set loop_expr_sql = loop_expr | replace('`' ~ unquoted_col ~ '`', unquoted_col) %}
-    {% set loop_expr_sql = loop_expr_sql | replace(alias ~ '.' ~ unquoted_col, unquoted_col) %}
-
-    {# build next-value expression (prefixed with gen. when used in the recursive step) #}
-    {% set next_expr_gen = loop_expr_sql | replace(unquoted_col, 'gen.' ~ unquoted_col) %}
-    {% set cond_on_next_gen = condition_expr_sql | replace(unquoted_col, next_expr_gen) %}
-
-    {# similarly for the relation case, prefix with g_src. #}
-    {% set next_expr_gsrc = loop_expr_sql | replace(unquoted_col, 'g_src.' ~ unquoted_col) %}
-    {% set cond_on_next_gsrc = condition_expr_sql | replace(unquoted_col, next_expr_gsrc) %}
 
     {% if relation_name %}
         with recursive gen as (
@@ -77,24 +60,26 @@
 
             select
                 g_src.*,
-                {{ next_expr_gsrc }} as {{ col }},
+                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen g_src
-            where {{ cond_on_next_gsrc }}
-              and _iter < {{ max_rows | int }}
+            where _iter < {{ max_rows | int }}
         )
-        select * from gen
+        select {{ alias }}.*, {{ col }}
+        from gen
+        where {{ condition_expr_sql }}
     {% else %}
         with recursive gen as (
             select {{ init_select }} as {{ col }}, 1 as _iter
             union all
             select
-                {{ next_expr_gen }} as {{ col }},
+                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen
-            where {{ cond_on_next_gen }}
-              and _iter < {{ max_rows | int }}
+            where _iter < {{ max_rows | int }}
         )
-        select {{ col }} from gen
+        select {{ col }}
+        from gen
+        where {{ condition_expr_sql }}
     {% endif %}
 {% endmacro %}
