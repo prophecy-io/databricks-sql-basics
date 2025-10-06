@@ -7,7 +7,6 @@
     max_rows=100000,
     force_mode=None
 ) %}
-
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("GenerateRows: init_expr is required") %}
     {% endif %}
@@ -28,8 +27,30 @@
 
     {% set self_ref = unquoted_col in loop_expr_lc %}
 
-    {% if (force_mode == 'linear' and not self_ref)
-       or (not self_ref and 'interval' not in loop_expr_lc) %}
+    {% if self_ref or force_mode == 'recursive' %}
+    {% if relation_name %}
+        with recursive gen as (
+            select {{ alias }}.*, {{ init_expr }} as {{ col }}, 1 as iteration
+            from {{ relation_name }} {{ alias }}
+            union all
+            select g_src.*, {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}, iteration + 1
+            from gen g_src
+            where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
+              and iteration < {{ max_rows | int }}
+        )
+        select * from gen order by iteration
+    {% else %}
+        with recursive gen as (
+            select {{ init_expr }} as {{ col }}, 1 as iteration
+            union all
+            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}, iteration + 1
+            from gen
+            where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
+              and iteration < {{ max_rows | int }}
+        )
+        select * from gen order by iteration
+    {% endif %}
+    {% else %}
     {% if relation_name %}
         with base as (
             select * from {{ relation_name }}
@@ -66,29 +87,6 @@
             from gen
         )
         select * from calc where {{ condition_expr }} order by _iter
-    {% endif %}
-    {% else %}
-    {% if relation_name %}
-        with recursive gen as (
-            select {{ alias }}.*, {{ init_expr }} as {{ col }}, 1 as iteration
-            from {{ relation_name }} {{ alias }}
-            union all
-            select g_src.*, {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}, iteration + 1
-            from gen g_src
-            where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
-              and iteration < {{ max_rows | int }}
-        )
-        select * from gen order by iteration
-    {% else %}
-        with recursive gen as (
-            select {{ init_expr }} as {{ col }}, 1 as iteration
-            union all
-            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}, iteration + 1
-            from gen
-            where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
-              and iteration < {{ max_rows | int }}
-        )
-        select * from gen order by iteration
     {% endif %}
     {% endif %}
 {% endmacro %}
