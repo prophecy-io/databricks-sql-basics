@@ -58,6 +58,13 @@
     {% set alias = "src" %}
 
     {# ===========================================================
+       🧮 Ensure valid max_rows
+       =========================================================== #}
+    {% if max_rows is none or max_rows == '' or (max_rows | string | regex_search('[^0-9]')) %}
+        {% set max_rows = 100000 %}
+    {% endif %}
+
+    {# ===========================================================
        ⚙️ Mode Detection
        =========================================================== #}
     {% if force_mode == 'linear'
@@ -82,20 +89,14 @@
             select
                 *,
                 case
-    when typeof({{ init_expr }}) in ('date', 'timestamp') then
-        case
-            -- ✅ If loop_expr already has 'interval' or date keywords, use as-is
-            when lower({{ loop_expr }}) like '%interval%'
-              or lower({{ loop_expr }}) like '%day%'
-              or lower({{ loop_expr }}) like '%month%'
-              or lower({{ loop_expr }}) like '%year%' then
-                cast({{ init_expr }} + ({{ loop_expr }}) as date)
-            -- ✅ Otherwise, just treat as numeric offset (days)
-            else cast({{ init_expr }} + interval (_iter - 1) day as date)
-        end
-    else
-        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-end as {{ col }}
+                    when try_to_date({{ init_expr }}) is not null then
+                        -- ✅ Date logic using date_add
+                        cast(date_add(cast({{ init_expr }} as date),
+                                      (_iter - 1) * coalesce(cast({{ loop_expr }} as int), 1)) as date)
+                    else
+                        -- ✅ Numeric sequence
+                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
+                end as {{ col }}
             from gen
         )
         select *
@@ -109,20 +110,12 @@ end as {{ col }}
         calc as (
             select
                 case
-    when typeof({{ init_expr }}) in ('date', 'timestamp') then
-        case
-            -- ✅ If loop_expr already has 'interval' or date keywords, use as-is
-            when lower({{ loop_expr }}) like '%interval%'
-              or lower({{ loop_expr }}) like '%day%'
-              or lower({{ loop_expr }}) like '%month%'
-              or lower({{ loop_expr }}) like '%year%' then
-                cast({{ init_expr }} + ({{ loop_expr }}) as date)
-            -- ✅ Otherwise, just treat as numeric offset (days)
-            else cast({{ init_expr }} + interval (_iter - 1) day as date)
-        end
-    else
-        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-end as {{ col }},
+                    when try_to_date({{ init_expr }}) is not null then
+                        cast(date_add(cast({{ init_expr }} as date),
+                                      (_iter - 1) * coalesce(cast({{ loop_expr }} as int), 1)) as date)
+                    else
+                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
+                end as {{ col }},
                 _iter
             from gen
         )
