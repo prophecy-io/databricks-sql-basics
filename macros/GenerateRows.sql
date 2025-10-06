@@ -49,8 +49,8 @@
     {% endif %}
 
     {% if relation_name %}
-        -- Generate rows per input row
         with recursive gen as (
+            -- base case: each row from input gets its own seed value
             select
                 {{ alias }}.*,
                 {{ init_select }} as {{ col }},
@@ -59,18 +59,17 @@
 
             union all
 
+            -- recursive step: same input row keeps generating its sequence
             select
-                {{ alias }}.*,
-                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
-                _iter + 1
+                g_src.* REPLACE (
+                    {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} AS {{ col }},
+                    _iter + 1 AS _iter
+                )
             from gen g_src
-            inner join {{ relation_name }} {{ alias }} on 1=1
             where _iter < {{ max_rows | int }}
         )
-        select * from gen
-        where {{ condition_expr_sql }}
+        select * from gen where {{ condition_expr_sql }}
     {% else %}
-        -- Standalone generation
         with recursive gen as (
             select {{ init_select }} as {{ col }}, 1 as _iter
             union all
@@ -80,8 +79,6 @@
             from gen
             where _iter < {{ max_rows | int }}
         )
-        select {{ col }}
-        from gen
-        where {{ condition_expr_sql }}
+        select {{ col }} from gen where {{ condition_expr_sql }}
     {% endif %}
 {% endmacro %}
