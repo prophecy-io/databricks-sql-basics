@@ -16,32 +16,36 @@
        =========================================================== #}
 
     {# ===========================================================
-       🛡️ Normalize inputs: if user passes raw values instead of quoted SQL
+       🛡️ Normalize inputs: stringify unquoted expressions
        =========================================================== #}
-    {% macro _stringify(expr) -%}
-        {% if expr is none %}
-            None
-        {% elif expr is string %}
-            {{ expr }}
-        {% else %}
-            '{{ expr }}'
-        {% endif %}
-    {%- endmacro %}
+    {% if init_expr is none %}
+        {% set init_expr = 'None' %}
+    {% elif not (init_expr is string) %}
+        {% set init_expr = "'" ~ init_expr ~ "'" %}
+    {% endif %}
 
-    {% set init_expr = _stringify(init_expr) %}
-    {% set condition_expr = _stringify(condition_expr) %}
-    {% set loop_expr = _stringify(loop_expr) %}
+    {% if condition_expr is none %}
+        {% set condition_expr = 'None' %}
+    {% elif not (condition_expr is string) %}
+        {% set condition_expr = "'" ~ condition_expr ~ "'" %}
+    {% endif %}
+
+    {% if loop_expr is none %}
+        {% set loop_expr = 'None' %}
+    {% elif not (loop_expr is string) %}
+        {% set loop_expr = "'" ~ loop_expr ~ "'" %}
+    {% endif %}
 
     {# ===========================================================
        🛡️ Safety checks
        =========================================================== #}
-    {% if init_expr is none or init_expr == 'None' %}
+    {% if init_expr == 'None' %}
         {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL string expression.") %}
     {% endif %}
-    {% if condition_expr is none or condition_expr == 'None' %}
+    {% if condition_expr == 'None' %}
         {% do exceptions.raise_compiler_error("GenerateRows: `condition_expr` must be a SQL string expression.") %}
     {% endif %}
-    {% if loop_expr is none or loop_expr == 'None' %}
+    {% if loop_expr == 'None' %}
         {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL string expression.") %}
     {% endif %}
 
