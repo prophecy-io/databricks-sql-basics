@@ -1,8 +1,8 @@
 {% macro GenerateRows(
-    init_expr,
-    condition_expr,
-    loop_expr,
     relation_name=None,
+    init_expr='1',
+    condition_expr='value<=1',
+    loop_expr='value+1',
     column_name='value',
     max_rows=100000,
     force_mode=None
