@@ -82,11 +82,20 @@
             select
                 *,
                 case
-                    when typeof({{ init_expr }}) in ('date', 'timestamp') then
-                        cast({{ init_expr }} + interval (_iter - 1) * ({{ loop_expr }}) as date)
-                    else
-                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-                end as {{ col }}
+    when typeof({{ init_expr }}) in ('date', 'timestamp') then
+        case
+            -- ✅ If loop_expr already has 'interval' or date keywords, use as-is
+            when lower({{ loop_expr }}) like '%interval%'
+              or lower({{ loop_expr }}) like '%day%'
+              or lower({{ loop_expr }}) like '%month%'
+              or lower({{ loop_expr }}) like '%year%' then
+                cast({{ init_expr }} + ({{ loop_expr }}) as date)
+            -- ✅ Otherwise, just treat as numeric offset (days)
+            else cast({{ init_expr }} + interval (_iter - 1) day as date)
+        end
+    else
+        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
+end as {{ col }}
             from gen
         )
         select *
@@ -100,11 +109,20 @@
         calc as (
             select
                 case
-                    when typeof({{ init_expr }}) in ('date', 'timestamp') then
-                        cast({{ init_expr }} + interval (_iter - 1) * ({{ loop_expr }}) as date)
-                    else
-                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-                end as {{ col }},
+    when typeof({{ init_expr }}) in ('date', 'timestamp') then
+        case
+            -- ✅ If loop_expr already has 'interval' or date keywords, use as-is
+            when lower({{ loop_expr }}) like '%interval%'
+              or lower({{ loop_expr }}) like '%day%'
+              or lower({{ loop_expr }}) like '%month%'
+              or lower({{ loop_expr }}) like '%year%' then
+                cast({{ init_expr }} + ({{ loop_expr }}) as date)
+            -- ✅ Otherwise, just treat as numeric offset (days)
+            else cast({{ init_expr }} + interval (_iter - 1) day as date)
+        end
+    else
+        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
+end as {{ col }},
                 _iter
             from gen
         )
