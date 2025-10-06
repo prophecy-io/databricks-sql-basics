@@ -1,36 +1,68 @@
 {% macro GenerateRows(
+    init_expr,
+    condition_expr,
+    loop_expr,
     relation_name=None,
-    init_expr='1',
-    condition_expr='value<=1',
-    loop_expr='value+1',
     column_name='value',
     max_rows=100000,
     force_mode=None
 ) %}
-    {# Handle special chars or spaces in column names safely #}
+    {# ===========================================================
+       🧠 PURPOSE
+       Replicates Alteryx "Generate Rows" functionality in Databricks SQL.
+       Supports both:
+         - Linear (arithmetic/date increment)
+         - Dynamic (recursive / data-dependent) generation.
+       =========================================================== #}
+
+    {# ===========================================================
+       🛡️ Normalize inputs: if user passes raw values instead of quoted SQL
+       =========================================================== #}
+    {% macro _stringify(expr) -%}
+        {% if expr is none %}
+            None
+        {% elif expr is string %}
+            {{ expr }}
+        {% else %}
+            '{{ expr }}'
+        {% endif %}
+    {%- endmacro %}
+
+    {% set init_expr = _stringify(init_expr) %}
+    {% set condition_expr = _stringify(condition_expr) %}
+    {% set loop_expr = _stringify(loop_expr) %}
+
+    {# ===========================================================
+       🛡️ Safety checks
+       =========================================================== #}
+    {% if init_expr is none or init_expr == 'None' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL string expression.") %}
+    {% endif %}
+    {% if condition_expr is none or condition_expr == 'None' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `condition_expr` must be a SQL string expression.") %}
+    {% endif %}
+    {% if loop_expr is none or loop_expr == 'None' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL string expression.") %}
+    {% endif %}
+
+    {# ===========================================================
+       🧱 Base setup
+       =========================================================== #}
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
 
-    {# --- Defensive Guards --- #}
-    {% if not init_expr %}
-        {% do exceptions.raise_compiler_error("Parameter `init_expr` is required") %}
-    {% endif %}
-    {% if not condition_expr %}
-        {% do exceptions.raise_compiler_error("Parameter `condition_expr` is required") %}
-    {% endif %}
-    {% if not loop_expr %}
-        {% do exceptions.raise_compiler_error("Parameter `loop_expr` is required") %}
-    {% endif %}
-
+    {# ===========================================================
+       ⚙️ Mode Detection
+       =========================================================== #}
     {% if force_mode == 'linear'
        or ('+' in loop_expr_lc and unquoted_col not in loop_expr_lc)
        or ('interval' in loop_expr_lc and unquoted_col not in loop_expr_lc)
     %}
 
     -- ========================================
-    -- 🟢 Linear / Arithmetic Sequence Mode
+    -- 🟢 LINEAR / ARITHMETIC MODE
     -- ========================================
     {% if relation_name %}
         with base as (
@@ -81,7 +113,7 @@
     {% else %}
 
     -- ========================================
-    -- 🔵 Recursive / Non-linear Mode
+    -- 🔵 DYNAMIC / RECURSIVE MODE
     -- ========================================
     {% if relation_name %}
         with recursive gen as (
