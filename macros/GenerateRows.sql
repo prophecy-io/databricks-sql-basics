@@ -4,8 +4,7 @@
     condition_expr='value <= 10',
     loop_expr='value + 1',
     column_name='value',
-    max_rows=100000,
-    focus_mode=None
+    max_rows=100000
 ) %}
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("init_expr is required") %}
@@ -48,8 +47,6 @@
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
 
-    {% set condition_fixed = condition_expr_sql | replace(unquoted_col, 'next_val') %}
-
     {% if relation_name %}
         with recursive gen as (
             select
@@ -62,29 +59,25 @@
 
             select
                 g_src.*,
-                next_val as {{ col }},
+                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
-            from (
-                select
-                    {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as next_val,
-                    _iter,
-                    {{ alias }}.*
-                from gen g_src
-            ) next_gen
-            where {{ condition_fixed }}
-              and _iter < {{ max_rows | int }}
+            from gen g_src
+            where {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
+                  and {{ condition_expr_sql | replace(unquoted_col, '(' ~ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) ~ ')') }}
+                  and _iter < {{ max_rows | int }}
         )
         select {{ alias }}.*, {{ col }} from gen
     {% else %}
         with recursive gen as (
-            select {{ init_select }} as {{ col }}, 1 as _iter
+            select
+                {{ init_select }} as {{ col }},
+                1 as _iter
             union all
-            select next_val as {{ col }}, _iter + 1
-            from (
-                select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as next_val, _iter
-                from gen
-            ) next_gen
-            where {{ condition_fixed }}
+            select
+                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
+                _iter + 1
+            from gen
+            where {{ condition_expr_sql | replace(unquoted_col, '(' ~ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) ~ ')') }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
