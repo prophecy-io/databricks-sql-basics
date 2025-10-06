@@ -1,39 +1,31 @@
 {% macro GenerateRows(
     relation_name=None,
     init_expr='1',
-    condition_expr='value<=1',
-    loop_expr='value+1',
+    condition_expr='value<=10',
+    loop_expr='1',
     column_name='value',
     max_rows=100000,
     force_mode=None
 ) %}
-    {% if init_expr is none %}
-        {% set init_expr = 'None' %}
+    {% if init_expr is none or init_expr == '' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: init_expr is required") %}
     {% endif %}
-    {% if condition_expr is none %}
-        {% set condition_expr = 'None' %}
+    {% if condition_expr is none or condition_expr == '' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: condition_expr is required") %}
     {% endif %}
-    {% if loop_expr is none %}
-        {% set loop_expr = 'None' %}
+    {% if loop_expr is none or loop_expr == '' %}
+        {% do exceptions.raise_compiler_error("GenerateRows: loop_expr is required") %}
     {% endif %}
-
-    {% if init_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL expression.") %}
-    {% endif %}
-    {% if condition_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `condition_expr` must be a SQL expression.") %}
-    {% endif %}
-    {% if loop_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL expression.") %}
+    {% if max_rows is none or max_rows == '' %}
+        {% set max_rows = 100000 %}
     {% endif %}
 
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
-    {% if max_rows is none or max_rows == '' %}
-        {% set max_rows = 100000 %}
-    {% endif %}
+
+    {% set date_mode = ("-" in init_expr or "interval" in loop_expr_lc) %}
 
     {% if force_mode == 'linear'
        or ('+' in loop_expr_lc and unquoted_col not in loop_expr_lc)
@@ -44,16 +36,17 @@
             select * from {{ relation_name }}
         ),
         gen as (
-            select b.*, explode(sequence(1, {{ max_rows | int }})) as _iter from base b
+            select b.*, explode(sequence(1, {{ max_rows | int }})) as _iter
+            from base b
         ),
         calc as (
-            select *,
-                case
-                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
-                        date_add(cast({{ init_expr }} as date), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
-                    else
-                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-                end as {{ col }}
+            select
+                *,
+                {% if date_mode %}
+                    date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1)) as {{ col }}
+                {% else %}
+                    (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }}
+                {% endif %}
             from gen
         )
         select * from calc where {{ condition_expr }} order by _iter
@@ -63,12 +56,11 @@
         ),
         calc as (
             select
-                case
-                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
-                        date_add(cast({{ init_expr }} as date), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
-                    else
-                        cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
-                end as {{ col }},
+                {% if date_mode %}
+                    date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1)) as {{ col }}
+                {% else %}
+                    (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }}
+                {% endif %},
                 _iter
             from gen
         )
