@@ -4,7 +4,8 @@
     condition_expr='value <= 10',
     loop_expr='value + 1',
     column_name='value',
-    max_rows=100000
+    max_rows=100000,
+    focus_mode=None
 ) %}
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("init_expr is required") %}
