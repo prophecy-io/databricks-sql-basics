@@ -16,7 +16,7 @@ class DataCleansing(MacroSpec):
     class DataCleansingProperties(MacroProperties):
         # properties for the component with default values
         schema: str = ''
-        relation_name: str = ''
+        relation_name: List[str] = field(default_factory=list)
 
         # null check operations
         removeRowNullAllCols: bool = False
@@ -252,7 +252,7 @@ class DataCleansing(MacroSpec):
         # Handle changes in the component's state and return the new state
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
-        relation_name = self.get_relation_names(newState, context)[0]
+        relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
             newState.properties,
@@ -265,7 +265,7 @@ class DataCleansing(MacroSpec):
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + props.relation_name + "'",
+            str(props.relation_name),
             props.schema,
             "'" + props.modifyCase + "'",
             str(props.columnNames),
@@ -295,7 +295,7 @@ class DataCleansing(MacroSpec):
         print("parametersMapisHere")
         print(parametersMap)
         return DataCleansing.DataCleansingProperties(
-            relation_name=parametersMap.get('relation_name').lstrip("'").rstrip("'"),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
             schema=parametersMap.get('schema'),
             modifyCase=parametersMap.get('modifyCase').lstrip("'").rstrip("'"),
             columnNames=json.loads(parametersMap.get('columnNames').replace("'", '"')),
@@ -323,7 +323,7 @@ class DataCleansing(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("modifyCase", properties.modifyCase),
                 MacroParameter("columnNames", json.dumps(properties.columnNames)),
