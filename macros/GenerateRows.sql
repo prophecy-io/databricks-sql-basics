@@ -7,6 +7,7 @@
     max_rows=100000,
     force_mode=None
 ) %}
+
     {% if init_expr is none or init_expr == '' %}
         {% do exceptions.raise_compiler_error("GenerateRows: init_expr is required") %}
     {% endif %}
@@ -25,12 +26,10 @@
     {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
 
-    {% set date_mode = ("-" in init_expr or "interval" in loop_expr_lc) %}
+    {% set self_ref = unquoted_col in loop_expr_lc %}
 
-    {% if force_mode == 'linear'
-       or ('+' in loop_expr_lc and unquoted_col not in loop_expr_lc)
-       or ('interval' in loop_expr_lc and unquoted_col not in loop_expr_lc)
-    %}
+    {% if (force_mode == 'linear' and not self_ref)
+       or (not self_ref and 'interval' not in loop_expr_lc) %}
     {% if relation_name %}
         with base as (
             select * from {{ relation_name }}
@@ -42,11 +41,12 @@
         calc as (
             select
                 *,
-                {% if date_mode %}
-                    date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1)) as {{ col }}
-                {% else %}
-                    (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }}
-                {% endif %}
+                case
+                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
+                        date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
+                    else
+                        (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double))
+                end as {{ col }}
             from gen
         )
         select * from calc where {{ condition_expr }} order by _iter
@@ -56,11 +56,12 @@
         ),
         calc as (
             select
-                {% if date_mode %}
-                    date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1)) as {{ col }}
-                {% else %}
-                    (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double)) as {{ col }}
-                {% endif %},
+                case
+                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
+                        date_add(to_date({{ init_expr }}), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
+                    else
+                        (cast({{ init_expr }} as double) + (_iter - 1) * cast({{ loop_expr }} as double))
+                end as {{ col }},
                 _iter
             from gen
         )
