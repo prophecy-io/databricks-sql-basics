@@ -24,19 +24,16 @@
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set alias = "src" %}
 
-    {# --- Detect type based on literal pattern --- #}
     {% set is_timestamp = " " in init_expr %}
     {% set is_date = ("-" in init_expr) and not is_timestamp %}
     {% set init_strip = init_expr.strip() %}
 
-    {# --- Quote bare literals --- #}
     {% if init_strip.startswith("'") or init_strip.startswith('"') %}
         {% set init_value = init_strip %}
     {% else %}
         {% set init_value = "'" ~ init_strip ~ "'" %}
     {% endif %}
 
-    {# --- Apply correct cast --- #}
     {% if is_timestamp %}
         {% set init_select = "to_timestamp(" ~ init_value ~ ")" %}
     {% elif is_date %}
@@ -45,7 +42,6 @@
         {% set init_select = init_expr %}
     {% endif %}
 
-    {# --- Fix condition_expr quotes if user used " instead of ' --- #}
     {% if '"' in condition_expr and "'" not in condition_expr %}
         {% set condition_expr_sql = condition_expr.replace('"', "'") %}
     {% else %}
@@ -67,7 +63,9 @@
                 {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
                 _iter + 1
             from gen g_src
-            where {{ condition_expr_sql | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
+            where (
+                {{ condition_expr_sql | replace(unquoted_col, 'new_val.' ~ unquoted_col) | replace('g_src.', '') | replace('gen.', '') }}
+            )
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
@@ -78,10 +76,15 @@
                 1 as _iter
             union all
             select
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
+                next_val as {{ col }},
                 _iter + 1
-            from gen
-            where {{ condition_expr_sql | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
+            from (
+                select
+                    {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as next_val,
+                    _iter
+                from gen
+            ) next_gen
+            where {{ condition_expr_sql | replace(unquoted_col, 'next_gen.next_val') }}
               and _iter < {{ max_rows | int }}
         )
         select {{ col }} from gen
