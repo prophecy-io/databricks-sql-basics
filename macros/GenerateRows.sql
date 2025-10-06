@@ -28,7 +28,11 @@
         with recursive gen as (
             select
                 {{ alias }}.*,
-                {% if is_date %}to_date({{ init_expr }}){% else %}{{ init_expr }}{% endif %} as {{ col }},
+                {% if is_date %}
+                    to_date({{ init_expr }})
+                {% else %}
+                    {{ init_expr }}
+                {% endif %} as {{ col }},
                 1 as _iter
             from {{ relation_name }} {{ alias }}
 
@@ -46,7 +50,11 @@
     {% else %}
         with recursive gen as (
             select
-                {% if is_date %}to_date({{ init_expr }}){% else %}{{ init_expr }}{% endif %} as {{ col }},
+                {% if is_date %}
+                    to_date({{ init_expr }})
+                {% else %}
+                    {{ init_expr }}
+                {% endif %} as {{ col }},
                 1 as _iter
             union all
             select
