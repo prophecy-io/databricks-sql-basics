@@ -48,6 +48,7 @@
         {% set condition_expr_sql = condition_expr %}
     {% endif %}
 
+    {# ✅ Replace column with next_val in condition for correct filtering #}
     {% set condition_fixed = condition_expr_sql | replace(unquoted_col, 'next_val') %}
 
     {% if relation_name %}
@@ -65,7 +66,9 @@
                 next_val as {{ col }},
                 _iter + 1
             from (
-                select {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as next_val, _iter
+                select
+                    {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as next_val,
+                    _iter
                 from gen g_src
             ) sub
             where {{ condition_fixed }}
