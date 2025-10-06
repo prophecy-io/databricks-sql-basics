@@ -9,37 +9,28 @@
 ) %}
     {% if init_expr is none %}
         {% set init_expr = 'None' %}
-    {% elif not (init_expr is string) %}
-        {% set init_expr = "'" ~ init_expr ~ "'" %}
     {% endif %}
-
     {% if condition_expr is none %}
         {% set condition_expr = 'None' %}
-    {% elif not (condition_expr is string) %}
-        {% set condition_expr = "'" ~ condition_expr ~ "'" %}
     {% endif %}
-
     {% if loop_expr is none %}
         {% set loop_expr = 'None' %}
-    {% elif not (loop_expr is string) %}
-        {% set loop_expr = "'" ~ loop_expr ~ "'" %}
     {% endif %}
 
     {% if init_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL string expression.") %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `init_expr` must be a SQL expression.") %}
     {% endif %}
     {% if condition_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `condition_expr` must be a SQL string expression.") %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `condition_expr` must be a SQL expression.") %}
     {% endif %}
     {% if loop_expr == 'None' %}
-        {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL string expression.") %}
+        {% do exceptions.raise_compiler_error("GenerateRows: `loop_expr` must be a SQL expression.") %}
     {% endif %}
 
     {% set col = DatabricksSqlBasics.safe_identifier(column_name) %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
     {% set loop_expr_lc = loop_expr | lower %}
     {% set alias = "src" %}
-
     {% if max_rows is none or max_rows == '' %}
         {% set max_rows = 100000 %}
     {% endif %}
@@ -53,27 +44,19 @@
             select * from {{ relation_name }}
         ),
         gen as (
-            select
-                b.*,
-                explode(sequence(1, {{ max_rows | int }})) as _iter
-            from base b
+            select b.*, explode(sequence(1, {{ max_rows | int }})) as _iter from base b
         ),
         calc as (
-            select
-                *,
+            select *,
                 case
-                    when try_to_date({{ init_expr }}) is not null then
-                        cast(date_add(cast({{ init_expr }} as date),
-                                      (_iter - 1) * coalesce(cast({{ loop_expr }} as int), 1)) as date)
+                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
+                        date_add(cast({{ init_expr }} as date), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
                     else
                         cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
                 end as {{ col }}
             from gen
         )
-        select *
-        from calc
-        where {{ condition_expr }}
-        order by _iter
+        select * from calc where {{ condition_expr }} order by _iter
     {% else %}
         with gen as (
             select explode(sequence(1, {{ max_rows | int }})) as _iter
@@ -81,56 +64,38 @@
         calc as (
             select
                 case
-                    when try_to_date({{ init_expr }}) is not null then
-                        cast(date_add(cast({{ init_expr }} as date),
-                                      (_iter - 1) * coalesce(cast({{ loop_expr }} as int), 1)) as date)
+                    when '{{ init_expr | lower }}' like '%-%' or '{{ loop_expr_lc }}' like '%interval%' then
+                        date_add(cast({{ init_expr }} as date), (_iter - 1) * coalesce(cast(regexp_extract('{{ loop_expr }}','[0-9]+',0) as int), 1))
                     else
                         cast({{ init_expr }} + (_iter - 1) * ({{ loop_expr }}) as double)
                 end as {{ col }},
                 _iter
             from gen
         )
-        select *
-        from calc
-        where {{ condition_expr }}
-        order by _iter
+        select * from calc where {{ condition_expr }} order by _iter
     {% endif %}
     {% else %}
     {% if relation_name %}
         with recursive gen as (
-            select
-                {{ alias }}.*,
-                {{ init_expr }} as {{ col }},
-                1 as iteration
+            select {{ alias }}.*, {{ init_expr }} as {{ col }}, 1 as iteration
             from {{ relation_name }} {{ alias }}
             union all
-            select
-                g_src.*,
-                {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }},
-                iteration + 1
+            select g_src.*, {{ loop_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }} as {{ col }}, iteration + 1
             from gen g_src
             where {{ condition_expr | replace(unquoted_col, 'g_src.' ~ unquoted_col) }}
               and iteration < {{ max_rows | int }}
         )
-        select *
-        from gen
-        order by iteration
+        select * from gen order by iteration
     {% else %}
         with recursive gen as (
-            select
-                {{ init_expr }} as {{ col }},
-                1 as iteration
+            select {{ init_expr }} as {{ col }}, 1 as iteration
             union all
-            select
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }},
-                iteration + 1
+            select {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ col }}, iteration + 1
             from gen
             where {{ condition_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }}
               and iteration < {{ max_rows | int }}
         )
-        select *
-        from gen
-        order by iteration
+        select * from gen order by iteration
     {% endif %}
     {% endif %}
 {% endmacro %}
