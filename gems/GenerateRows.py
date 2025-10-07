@@ -20,7 +20,6 @@ class GenerateRows(MacroSpec):
         max_rows: Optional[str] = None
         force_mode: Optional[str] = None
 
-
     def get_relation_names(self, component: Component, context: SqlContext):
         all_upstream_nodes = []
         for inputPort in component.ports.inputs:
@@ -71,7 +70,6 @@ class GenerateRows(MacroSpec):
         )
         return newState.bindProperties(newProperties)
 
-
     def apply(self, props: GenerateRowsProperties) -> str:
         table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
@@ -107,13 +105,13 @@ class GenerateRows(MacroSpec):
             relation_name_list = [raw_rel.strip()] if raw_rel.strip() else []
 
         return GenerateRows.GenerateRowsProperties(
-            relation_name = relation_name_list,            # <-- now always a list
-            new_field_name = p.get('init_expr'),
-            start_expr     = p.get('condition_expr'),
-            end_expr       = p.get('loop_expr'),
-            step_expr      = p.get('column_name'),
-            data_type      = p.get('max_rows'),
-            interval_unit  = p.get('force_mode')
+            relation_name=relation_name_list,  # <-- now always a list
+            new_field_name=p.get('init_expr'),
+            start_expr=p.get('condition_expr'),
+            end_expr=p.get('loop_expr'),
+            step_expr=p.get('column_name'),
+            data_type=p.get('max_rows'),
+            interval_unit=p.get('force_mode')
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

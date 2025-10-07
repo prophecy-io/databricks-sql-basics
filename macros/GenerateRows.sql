@@ -22,6 +22,7 @@
 
     {% set alias = "src" %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
+    {% set internal_col = "__gen_" ~ unquoted_col %}  {# internal alias to avoid collisions #}
 
     {% set is_timestamp = " " in init_expr %}
     {% set is_date = ("-" in init_expr) and not is_timestamp %}
@@ -52,7 +53,7 @@
             -- base case: one row per input record
             select
                 struct({{ alias }}.*) as payload,
-                {{ init_select }} as {{ unquoted_col }},
+                {{ init_select }} as {{ internal_col }},
                 1 as _iter
             from {{ relation_name }} {{ alias }}
 
@@ -61,26 +62,28 @@
             -- recursive step
             select
                 gen.payload as payload,
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ unquoted_col }},
+                {{ loop_expr | replace(unquoted_col, 'gen.' ~ internal_col) }} as {{ internal_col }},
                 _iter + 1
             from gen
             where _iter < {{ max_rows | int }}
         )
         select
             payload.*,
-            {{ unquoted_col }}
+            {{ internal_col }} as {{ unquoted_col }}
         from gen
-        where {{ condition_expr_sql }}
+        where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
     {% else %}
         with recursive gen as (
-            select {{ init_select }} as {{ unquoted_col }}, 1 as _iter
+            select {{ init_select }} as {{ internal_col }}, 1 as _iter
             union all
             select
-                {{ loop_expr | replace(unquoted_col, 'gen.' ~ unquoted_col) }} as {{ unquoted_col }},
+                {{ loop_expr | replace(unquoted_col, 'gen.' ~ internal_col) }} as {{ internal_col }},
                 _iter + 1
             from gen
             where _iter < {{ max_rows | int }}
         )
-        select {{ unquoted_col }} from gen where {{ condition_expr_sql }}
+        select {{ internal_col }} as {{ unquoted_col }}
+        from gen
+        where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
     {% endif %}
 {% endmacro %}
