@@ -22,7 +22,7 @@
 
     {% set alias = "src" %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) %}
-    {% set internal_col = "__gen_" ~ unquoted_col %}  {# internal alias to avoid collisions #}
+    {% set internal_col = "__gen_" ~ unquoted_col %}   {# internal alias to prevent duplicate column name #}
 
     {% set is_timestamp = " " in init_expr %}
     {% set is_date = ("-" in init_expr) and not is_timestamp %}
