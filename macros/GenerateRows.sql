@@ -22,7 +22,7 @@
 
     {% set alias = "src" %}
     {% set unquoted_col = DatabricksSqlBasics.unquote_identifier(column_name) | trim %}
-    {% set internal_col = "__gen_" ~ unquoted_col | replace(' ', '_') %}  {# ensure valid SQL identifier #}
+    {% set internal_col = "__gen_" ~ unquoted_col | replace(' ', '_') %}
 
     {% set is_timestamp = " " in init_expr %}
     {% set is_date = ("-" in init_expr) and not is_timestamp %}
@@ -67,8 +67,11 @@
             from gen
             where _iter < {{ max_rows | int }}
         )
+        {# --- Final projection: drop original column if same name exists --- #}
         select
-            payload.*,
+            {%- for c in dbt_utils.get_filtered_columns_in_relation(relation_name) if c.name != unquoted_col -%}
+                payload.{{ DatabricksSqlBasics.quote_identifier(c.name) }},
+            {%- endfor -%}
             {{ internal_col }} as {{ unquoted_col }}
         from gen
         where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
