@@ -67,11 +67,8 @@
             from gen
             where _iter < {{ max_rows | int }}
         )
-        {# --- Final projection: drop original column if same name exists --- #}
         select
-            {%- for c in dbt_utils.get_filtered_columns_in_relation(relation_name) if c.name != unquoted_col -%}
-                payload.{{ DatabricksSqlBasics.quote_identifier(c.name) }},
-            {%- endfor -%}
+            payload.* EXCEPT ({{ unquoted_col }}),   -- ✅ remove the original column if it exists
             {{ internal_col }} as {{ unquoted_col }}
         from gen
         where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
