@@ -49,6 +49,14 @@
     {% endif %}
 
     {% if relation_name %}
+        -- get all columns of the relation
+        {% set cols_query %}
+            show columns in {{ relation_name }}
+        {% endset %}
+        {% set result = run_query(cols_query) %}
+        {% set all_cols = result.columns[0].values() if result is not none else [] %}
+        {% set has_col = unquoted_col in all_cols %}
+
         with recursive gen as (
             -- base case: one row per input record
             select
@@ -67,11 +75,21 @@
             from gen
             where _iter < {{ max_rows | int }}
         )
-        select
-            payload.* EXCEPT ({{ unquoted_col }}),   -- ✅ remove the original column if it exists
-            {{ internal_col }} as {{ unquoted_col }}
-        from gen
-        where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
+
+        {% if has_col %}
+            select
+                payload.* EXCEPT ({{ unquoted_col }}),
+                {{ internal_col }} as {{ unquoted_col }}
+            from gen
+            where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
+        {% else %}
+            select
+                payload.*,
+                {{ internal_col }} as {{ unquoted_col }}
+            from gen
+            where {{ condition_expr_sql | replace(unquoted_col, internal_col) }}
+        {% endif %}
+
     {% else %}
         with recursive gen as (
             select {{ init_select }} as {{ internal_col }}, 1 as _iter

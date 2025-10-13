@@ -40,6 +40,45 @@ class GenerateRows(MacroSpec):
         return relation_name
 
     def dialog(self) -> Dialog:
+        row_generation = StepContainer().addElement(
+            Step().addElement(
+                StackLayout(height="100%")
+                .addElement(
+                    TitleElement("*Configure row generation strategy")
+                )
+                .addElement(TextBox("Initialization expression").bindPlaceholder(
+                    """Row generation would start from this. eg: 1 or payload.col_name""").bindProperty("init_expr"))
+                .addElement(TextBox("Condition expression").bindPlaceholder(
+                    """Breaking condition to stop loop. eg: value < 10 or value < payload.col_name""").bindProperty(
+                    "condition_expr"))
+                .addElement(TextBox("Loop expression (usually incremental)").bindPlaceholder(
+                    """Step to increment with in every iteration. eg: value + 1 or value + payload.col_name""").bindProperty(
+                    "loop_expr"))
+            )
+        )
+
+        create_column = StepContainer().addElement(
+            Step().addElement(
+                StackLayout(height="100%")
+                .addElement(
+                    TitleElement("*Choose output column name")
+                )
+                .addElement(TextBox("").bindPlaceholder(
+                    """value""").bindProperty("column_name"))
+            )
+        )
+
+        advanced_options = StepContainer().addElement(
+            Step().addElement(
+                StackLayout(height="100%")
+                .addElement(
+                    TitleElement("Advanced options")
+                )
+                .addElement(TextBox("Max rows per iteration (default: 100000)").bindPlaceholder(
+                    """100000""").bindProperty("max_rows"))
+            )
+        )
+
         return Dialog("GenerateRows").addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(
@@ -48,12 +87,9 @@ class GenerateRows(MacroSpec):
             )
             .addColumn(
                 StackLayout(height="100%")
-                .addElement(TextBox("init_expr").bindPlaceholder("""abc""").bindProperty("init_expr"))
-                .addElement(TextBox("condition_expr").bindPlaceholder("""abc""").bindProperty("condition_expr"))
-                .addElement(TextBox("loop_expr").bindPlaceholder("""abc""").bindProperty("loop_expr"))
-                .addElement(TextBox("column_name").bindPlaceholder("""abc""").bindProperty("column_name"))
-                .addElement(TextBox("max_rows").bindPlaceholder("""abc""").bindProperty("max_rows"))
-                .addElement(TextBox("force_mode").bindPlaceholder("""abc""").bindProperty("force_mode"))
+                .addElement(create_column)
+                .addElement(row_generation)
+                .addElement(advanced_options)
             )
         )
 
