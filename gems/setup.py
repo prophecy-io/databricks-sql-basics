@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 setup(
     name = 'DatabricksSqlBasics',
-    version = '0.0.13.dev3',
+    version = '0.0.13.dev4',
     packages = ['DatabricksSqlBasics'],
     package_dir = {'DatabricksSqlBasics': '.'},
     description = '',
